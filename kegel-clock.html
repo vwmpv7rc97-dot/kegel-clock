@@ -522,23 +522,47 @@ window.addEventListener('beforeinstallprompt', (e) => {
   };
 });
 
-// ===== Service Worker（离线缓存） =====
+// ===== Service Worker（离线缓存 + 通知处理） =====
 if ('serviceWorker' in navigator) {
   const swCode = `
-    const CACHE = 'kegel-clock-v1';
+    const CACHE = 'kegel-clock-v2';
     const URLS = [self.location.href];
+
     self.addEventListener('install', e => {
       e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS)).catch(()=>{}));
+      self.skipWaiting();
     });
+
+    self.addEventListener('activate', e => {
+      e.waitUntil(caches.keys().then(keys =>
+        Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      ));
+      self.clients.claim();
+    });
+
     self.addEventListener('fetch', e => {
       e.respondWith(
         caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-          if (resp.ok) {
+          if (resp.ok && resp.type === 'basic') {
             const clone = resp.clone();
             caches.open(CACHE).then(c => c.put(e.request, clone));
           }
           return resp;
         }))
+      );
+    });
+
+    // 点击通知 → 切回/打开页面
+    self.addEventListener('notificationclick', e => {
+      e.notification.close();
+      e.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+          if (windows.length > 0) {
+            windows[0].focus();
+          } else {
+            clients.openWindow(self.location.href);
+          }
+        })
       );
     });
   `;
@@ -733,15 +757,53 @@ function requestPermission() {
 }
 
 function sendNotification(title, body) {
-  // 优先用系统通知
-  if (notificationGranted && 'Notification' in window) {
+  // 优先通过 Service Worker 发送通知（Android 后台也能收到）
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
     try {
-      new Notification(title, { body, tag: 'kegel-reminder' });
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, {
+          body,
+          tag: 'kegel-reminder',
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="%233b82c4"/><text x="50" y="65" text-anchor="middle" font-size="40">🏋️</text></svg>',
+          vibrate: [200, 100, 200, 100, 400],
+          requireInteraction: true,
+          renotify: true,
+        });
+      });
       return;
     } catch (e) {}
   }
-  // fallback：页面内弹窗
+  // 降级：普通 Notification API
+  if (notificationGranted && 'Notification' in window) {
+    try {
+      new Notification(title, { body, tag: 'kegel-reminder', requireInteraction: true });
+      return;
+    } catch (e) {}
+  }
+  // 最终 fallback：页面内弹窗
   showInlineToast(`⏰ ${title}\n${body}`);
+}
+
+// ===== 标题闪烁（标签页在后台时吸引注意） =====
+let titleFlasher = null;
+let originalTitle = document.title;
+
+function startTitleFlash() {
+  if (titleFlasher) return;
+  originalTitle = document.title;
+  let on = true;
+  titleFlasher = setInterval(() => {
+    document.title = on ? '⏰ 提肛时间！' : originalTitle;
+    on = !on;
+  }, 800);
+}
+
+function stopTitleFlash() {
+  if (titleFlasher) {
+    clearInterval(titleFlasher);
+    titleFlasher = null;
+    document.title = originalTitle;
+  }
 }
 
 function checkPermission() {
@@ -779,6 +841,9 @@ function startExercise() {
 
   // 通知
   sendNotification('⏰ 时间到！', '开始 60 秒提肛运动吧！');
+
+  // 标题闪烁（后台标签页）
+  startTitleFlash();
 
   // 请求屏幕常亮
   requestWakeLock();
@@ -861,6 +926,7 @@ function finishExercise() {
 
   beepDone();
   releaseWakeLock();
+  stopTitleFlash();
   document.getElementById('overlay').classList.remove('active');
 
   const toast = document.getElementById('doneToast');
@@ -877,6 +943,7 @@ function skipExercise() {
   }
 
   releaseWakeLock();
+  stopTitleFlash();
   document.getElementById('overlay').classList.remove('active');
 
   // 周期保持运行，nextTriggerTime 不变（已自动 +60min）
