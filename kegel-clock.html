@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>提肛时钟</title>
+
+<!-- PWA Meta Tags -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="提肛时钟">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#e8f4fd">
+<meta name="description" content="每小时提醒提肛运动，守护健康">
+
+<!-- Apple Touch Icon (inline SVG via data URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='200' height='200' rx='40' fill='%23e8f4fd'/><circle cx='100' cy='80' r='50' fill='none' stroke='%233b82c4' stroke-width='8'/><text x='100' y='88' text-anchor='middle' font-size='36' font-family='sans-serif' fill='%233b82c4'>🕐</text><text x='100' y='155' text-anchor='middle' font-size='22' font-family='sans-serif' fill='%233b82c4'>提肛</text></svg>">
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-start: #e8f4fd;
+    --bg-mid: #d4eafc;
+    --bg-end: #ecf5fb;
+    --text-primary: #3b82c4;
+    --text-secondary: #7eb8da;
+    --text-hint: #93c5e3;
+    --contract: #22c55e;
+    --relax: #60a5fa;
+    --white-glass: rgba(255,255,255,0.55);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 30%, #e0f0ff 60%, var(--bg-end) 100%);
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    padding: max(16px, var(--safe-top)) 16px max(16px, var(--safe-bottom)) 16px;
+  }
+
+  /* ===== 主时钟容器 ===== */
+  .clock-container {
+    text-align: center;
+    padding: 40px 36px;
+    background: var(--white-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 28px;
+    box-shadow:
+      0 4px 24px rgba(59,130,196,0.08),
+      0 20px 60px rgba(59,130,196,0.06),
+      inset 0 1px 0 rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.6);
+    width: 100%;
+    max-width: 480px;
+    overflow: hidden;
+  }
+
+  .clock-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    letter-spacing: 4px;
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  .clock-time {
+    font-size: 80px;
+    font-weight: 200;
+    color: var(--text-primary);
+    letter-spacing: 4px;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    text-shadow: 0 2px 8px rgba(59,130,196,0.1);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .clock-date {
+    font-size: 16px;
+    color: var(--text-hint);
+    margin-top: 8px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  .next-reminder {
+    margin-top: 20px;
+    font-size: 13px;
+    color: #8ab8d8;
+    letter-spacing: 1px;
+  }
+
+  .next-reminder span {
+    color: #5a9ec4;
+    font-weight: 600;
+  }
+
+  /* ===== 按钮区 ===== */
+  .btn-row {
+    margin-top: 24px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 11px 22px;
+    border-radius: 20px;
+    border: 1px solid rgba(59,130,196,0.2);
+    background: rgba(255,255,255,0.6);
+    color: #5a9ec4;
+    font-size: 14px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    font-family: inherit;
+    min-height: 44px;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn:active {
+    transform: scale(0.96);
+    background: rgba(59,130,196,0.1);
+  }
+
+  .btn-primary {
+    background: var(--text-primary);
+    color: #fff;
+    border-color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .btn-primary:active {
+    background: #2b72b4;
+    border-color: #2b72b4;
+  }
+
+  /* 桌面端 hover */
+  @media (hover: hover) {
+    .btn:hover {
+      background: rgba(255,255,255,0.9);
+      border-color: rgba(59,130,196,0.4);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59,130,196,0.12);
+    }
+    .btn-primary:hover {
+      background: #2b72b4;
+      border-color: #2b72b4;
+      color: #fff;
+    }
+  }
+
+  /* ===== 通知被拒时的页面内提示 ===== */
+  .inline-toast {
+    position: fixed;
+    bottom: calc(60px + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%) translateY(120px);
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 14px 24px;
+    border-radius: 16px;
+    font-size: 14px;
+    color: var(--text-primary);
+    letter-spacing: 1px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(59,130,196,0.15);
+    border: 1px solid rgba(255,255,255,0.6);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 300;
+    max-width: 90vw;
+    line-height: 1.5;
+  }
+
+  .inline-toast.show {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ===== 运动 Overlay ===== */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, var(--bg-start) 0%, #d0e8f8 50%, #e0f0ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+
+  .overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .exercise-card {
+    text-align: center;
+    padding: 40px 36px;
+    background: var(--white-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 28px;
+    box-shadow:
+      0 4px 24px rgba(59,130,196,0.1),
+      0 20px 60px rgba(59,130,196,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.6);
+    width: 100%;
+    max-width: 440px;
+    overflow: hidden;
+  }
+
+  .exercise-title {
+    font-size: 20px;
+    color: var(--text-primary);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .exercise-subtitle {
+    font-size: 13px;
+    color: var(--text-hint);
+    margin-bottom: 30px;
+    letter-spacing: 1px;
+  }
+
+  /* 圆形进度 */
+  .progress-ring-wrap {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 24px;
+  }
+
+  .progress-ring {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+  }
+
+  .progress-ring .bg {
+    fill: none;
+    stroke: rgba(59,130,196,0.08);
+    stroke-width: 8;
+  }
+
+  .progress-ring .fg {
+    fill: none;
+    stroke: var(--text-primary);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.3s linear;
+  }
+
+  .progress-ring .fg.relax {
+    stroke: var(--relax);
+  }
+
+  .countdown-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+    font-weight: 200;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  .phase-label {
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+    transition: color 0.3s;
+  }
+
+  .phase-label.contract { color: var(--contract); }
+  .phase-label.relax { color: var(--relax); }
+
+  .phase-hint {
+    font-size: 13px;
+    color: var(--text-hint);
+    margin-top: 18px;
+    letter-spacing: 1px;
+  }
+
+  .cycle-indicator {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 14px;
+  }
+
+  .cycle-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(59,130,196,0.15);
+    transition: all 0.3s;
+  }
+
+  .cycle-dot.done { background: var(--relax); }
+  .cycle-dot.current {
+    background: var(--text-primary);
+    box-shadow: 0 0 12px rgba(59,130,196,0.4);
+    transform: scale(1.3);
+  }
+
+  .btn-skip {
+    margin-top: 26px;
+    padding: 10px 22px;
+    border-radius: 16px;
+    border: 1px solid rgba(59,130,196,0.15);
+    background: rgba(255,255,255,0.5);
+    color: var(--text-hint);
+    font-size: 13px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    font-family: inherit;
+    min-height: 44px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-skip:active {
+    color: var(--text-primary);
+    border-color: rgba(59,130,196,0.3);
+  }
+
+  /* 完成提示 */
+  .done-toast {
+    position: fixed;
+    top: calc(40px + var(--safe-top));
+    left: 50%;
+    transform: translateX(-50%) translateY(-120px);
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 14px 28px;
+    border-radius: 20px;
+    font-size: 15px;
+    color: var(--text-primary);
+    letter-spacing: 2px;
+    box-shadow: 0 8px 32px rgba(59,130,196,0.12);
+    border: 1px solid rgba(255,255,255,0.6);
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 200;
+  }
+
+  .done-toast.show {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ===== 安装提示 ===== */
+  .install-banner {
+    display: none;
+    position: fixed;
+    bottom: calc(16px + var(--safe-bottom));
+    left: 16px;
+    right: 16px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 16px;
+    padding: 14px 20px;
+    font-size: 13px;
+    color: var(--text-primary);
+    letter-spacing: 1px;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(59,130,196,0.12);
+    border: 1px solid rgba(255,255,255,0.6);
+    z-index: 50;
+  }
+
+  .install-banner button {
+    margin-left: 10px;
+    padding: 6px 16px;
+    border-radius: 12px;
+    border: none;
+    background: var(--text-primary);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* ===== 响应式 ===== */
+  /* 小手机 (320-374px: iPhone SE) */
+  @media (max-width: 374px) {
+    .clock-container { padding: 24px 16px; border-radius: 20px; }
+    .clock-time { font-size: 46px; letter-spacing: 2px; }
+    .clock-date { font-size: 12px; }
+    .clock-label { font-size: 12px; letter-spacing: 2px; margin-bottom: 6px; }
+    .next-reminder { font-size: 11px; margin-top: 12px; }
+    .btn { font-size: 12px; padding: 10px 14px; min-height: 40px; }
+    .btn-row { gap: 6px; margin-top: 14px; }
+    .exercise-card { padding: 24px 16px; border-radius: 20px; }
+    .exercise-title { font-size: 17px; }
+    .exercise-subtitle { font-size: 11px; margin-bottom: 18px; }
+    .progress-ring-wrap { width: 110px; height: 110px; margin-bottom: 12px; }
+    .countdown-num { font-size: 32px; }
+    .phase-label { font-size: 18px; letter-spacing: 2px; }
+    .phase-hint { font-size: 11px; margin-top: 12px; }
+    .btn-skip { margin-top: 14px; font-size: 11px; min-height: 40px; }
+  }
+
+  /* 普通手机 (375-430px: iPhone 14/15) */
+  @media (min-width: 375px) and (max-width: 430px) {
+    .clock-container { padding: 30px 22px; }
+    .clock-time { font-size: 60px; letter-spacing: 3px; }
+    .clock-date { font-size: 13px; }
+    .exercise-card { padding: 30px 22px; }
+    .progress-ring-wrap { width: 140px; height: 140px; }
+    .countdown-num { font-size: 42px; }
+    .phase-label { font-size: 22px; }
+  }
+
+  /* 桌面端 (1024px+) */
+  @media (min-width: 1024px) {
+    .clock-container { padding: 60px 80px; max-width: 560px; }
+    .clock-time { font-size: 120px; letter-spacing: 8px; }
+    .clock-date { font-size: 20px; }
+    .clock-label { font-size: 16px; }
+    .exercise-card { padding: 60px 80px; }
+    .progress-ring-wrap { width: 200px; height: 200px; }
+    .countdown-num { font-size: 64px; }
+  }
+
+  /* 横屏手机 */
+  @media (max-height: 500px) and (orientation: landscape) {
+    body { align-items: flex-start; padding-top: 8px; }
+    .clock-container { padding: 14px 24px; border-radius: 18px; }
+    .clock-time { font-size: 38px; letter-spacing: 2px; }
+    .clock-date { font-size: 11px; margin-top: 4px; }
+    .clock-label { font-size: 10px; margin-bottom: 4px; letter-spacing: 2px; }
+    .next-reminder { margin-top: 6px; font-size: 10px; }
+    .btn-row { margin-top: 8px; gap: 6px; }
+    .btn { font-size: 11px; padding: 7px 12px; min-height: 34px; }
+    .exercise-card { padding: 14px 24px; border-radius: 18px; }
+    .exercise-title { font-size: 15px; }
+    .exercise-subtitle { margin-bottom: 8px; font-size: 10px; }
+    .progress-ring-wrap { width: 80px; height: 80px; margin-bottom: 6px; }
+    .countdown-num { font-size: 28px; }
+    .phase-label { font-size: 15px; }
+    .phase-hint { margin-top: 6px; font-size: 10px; }
+    .btn-skip { margin-top: 8px; min-height: 34px; padding: 5px 14px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 主时钟 ===== -->
+<div class="clock-container" id="clockContainer">
+  <div class="clock-label">提 肛 时 钟</div>
+  <div class="clock-time" id="clockTime">00:00:00</div>
+  <div class="clock-date" id="clockDate"></div>
+  <div class="next-reminder">
+    下次提醒：<span id="nextReminder">--:--</span>
+  </div>
+  <div class="btn-row">
+    <button class="btn" onclick="requestPermission()" id="btnPerm">🔔 开启通知</button>
+    <button class="btn btn-primary" onclick="startExercise()">🧪 立即体验</button>
+  </div>
+</div>
+
+<!-- ===== 运动 Overlay ===== -->
+<div class="overlay" id="overlay">
+  <div class="exercise-card">
+    <div class="exercise-title">🏋️ 提肛运动</div>
+    <div class="exercise-subtitle" id="exerciseSubtitle">每小时整点 · 守护健康</div>
+
+    <div class="progress-ring-wrap">
+      <svg class="progress-ring" viewBox="0 0 200 200">
+        <circle class="bg" cx="100" cy="100" r="90"/>
+        <circle class="fg" id="progressFg" cx="100" cy="100" r="90"
+          stroke-dasharray="565.49"
+          stroke-dashoffset="0"/>
+      </svg>
+      <div class="countdown-num" id="countdownNum">60</div>
+    </div>
+
+    <div class="phase-label contract" id="phaseLabel">收 缩</div>
+    <div class="phase-hint" id="phaseHint">第 1 / 3 轮</div>
+
+    <div class="cycle-indicator" id="cycleIndicator">
+      <div class="cycle-dot current"></div>
+      <div class="cycle-dot"></div>
+      <div class="cycle-dot"></div>
+    </div>
+
+    <button class="btn-skip" onclick="skipExercise()">跳过本次</button>
+  </div>
+</div>
+
+<!-- 完成提示 -->
+<div class="done-toast" id="doneToast">✅ 运动完成 · 下一小时见</div>
+
+<!-- 页面内通知（通知API不可用时fallback） -->
+<div class="inline-toast" id="inlineToast"></div>
+
+<!-- PWA 安装提示 -->
+<div class="install-banner" id="installBanner">
+  添加到主屏幕，像 App 一样使用
+  <button onclick="this.parentElement.style.display='none'">知道了</button>
+</div>
+
+<script>
+// ===== 全局状态 =====
+let phaseTimer = null;
+let currentHour = -1;
+let notificationGranted = false;
+let audioReady = false;
+let wakeLock = null;
+
+// ===== PWA 安装 =====
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // 显示安装提示
+  const banner = document.getElementById('installBanner');
+  banner.style.display = 'block';
+  banner.querySelector('button').onclick = () => {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      banner.style.display = 'none';
+    });
+  };
+});
+
+// ===== Service Worker（离线缓存） =====
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'kegel-clock-v1';
+    const URLS = [self.location.href];
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS)).catch(()=>{}));
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
+          if (resp.ok) {
+            const clone = resp.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return resp;
+        }))
+      );
+    });
+  `;
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl, { scope: '/' }).catch(() => {});
+}
+
+// ===== 屏幕常亮（运动中防止锁屏） =====
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (e) { /* 用户拒绝或平台不支持 */ }
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLock) {
+    try { await wakeLock.release(); } catch (e) {}
+    wakeLock = null;
+  }
+}
+
+// ===== 手机振动 =====
+function vibrate(pattern) {
+  if ('vibrate' in navigator) {
+    try { navigator.vibrate(pattern); } catch (e) {}
+  }
+}
+
+// ===== 页面内通知（fallback） =====
+function showInlineToast(msg) {
+  const toast = document.getElementById('inlineToast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// ===== 音频引擎（延迟初始化） =====
+let audioCtx = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioReady = true;
+  } catch (e) {
+    console.warn('AudioContext init failed:', e);
+  }
+}
+
+function ensureAudio() {
+  if (!audioCtx) initAudio();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().then(() => { audioReady = true; });
+  }
+}
+
+function beep(freq = 880, duration = 0.15, type = 'sine') {
+  ensureAudio();
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + duration);
+  } catch (e) {}
+}
+
+function beepContract() { beep(660, 0.15, 'square'); vibrate(100); }
+function beepRelax()    { beep(1040, 0.2, 'sine');  vibrate([50, 30, 50]); }
+function beepDone() {
+  beep(1320, 0.12, 'sine');
+  setTimeout(() => beep(1560, 0.15, 'sine'), 150);
+  setTimeout(() => beep(1760, 0.25, 'sine'), 350);
+  vibrate([100, 50, 100, 50, 200]);
+}
+
+// ===== 时钟显示 =====
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+
+  document.getElementById('clockTime').textContent = `${hh}:${mm}:${ss}`;
+
+  const weekdays = ['日','一','二','三','四','五','六'];
+  const y = now.getFullYear();
+  const M = String(now.getMonth()+1).padStart(2,'0');
+  const d = String(now.getDate()).padStart(2,'0');
+  const w = weekdays[now.getDay()];
+  document.getElementById('clockDate').textContent = `${y}年${M}月${d}日 星期${w}`;
+
+  const nextHour = (now.getHours() + 1) % 24;
+  const nextStr = String(nextHour).padStart(2, '0') + ':00';
+  document.getElementById('nextReminder').textContent = nextStr;
+
+  // 整点触发
+  if (now.getMinutes() === 0 && now.getSeconds() === 0 && now.getHours() !== currentHour) {
+    currentHour = now.getHours();
+    startExercise();
+  }
+
+  // 跨整点重置
+  if (now.getMinutes() >= 1 && currentHour !== now.getHours()) {
+    currentHour = now.getHours();
+  }
+}
+
+function initCurrentHour() {
+  currentHour = new Date().getHours();
+}
+
+// ===== 通知 =====
+function requestPermission() {
+  if (!('Notification' in window)) {
+    showInlineToast('⚠️ 此浏览器不支持桌面通知，但页面内提醒仍然有效');
+    notificationGranted = false;
+    return;
+  }
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      notificationGranted = true;
+      const btn = document.getElementById('btnPerm');
+      btn.textContent = '✅ 通知已开启';
+      btn.style.opacity = '0.6';
+      btn.style.pointerEvents = 'none';
+      sendNotification('提肛时钟已就绪', '每小时整点会提醒你做提肛运动 🏋️');
+    } else {
+      notificationGranted = false;
+      showInlineToast('💡 通知被拒，整点会在页面内弹窗提醒');
+    }
+  });
+}
+
+function sendNotification(title, body) {
+  // 优先用系统通知
+  if (notificationGranted && 'Notification' in window) {
+    try {
+      new Notification(title, { body, tag: 'kegel-reminder' });
+      return;
+    } catch (e) {}
+  }
+  // fallback：页面内弹窗
+  showInlineToast(`⏰ ${title}\n${body}`);
+}
+
+function checkPermission() {
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      notificationGranted = true;
+      const btn = document.getElementById('btnPerm');
+      btn.textContent = '✅ 通知已开启';
+      btn.style.opacity = '0.6';
+      btn.style.pointerEvents = 'none';
+    } else if (Notification.permission === 'denied') {
+      notificationGranted = false;
+    }
+  } else {
+    notificationGranted = false;
+  }
+}
+
+// ===== 运动逻辑 =====
+const CIRCUMFERENCE = 2 * Math.PI * 90; // 565.49
+
+function startExercise() {
+  if (phaseTimer !== null) return;
+
+  const overlay = document.getElementById('overlay');
+  const fg = document.getElementById('progressFg');
+  const countdown = document.getElementById('countdownNum');
+  const phaseLabel = document.getElementById('phaseLabel');
+  const phaseHint = document.getElementById('phaseHint');
+  const indicator = document.getElementById('cycleIndicator');
+
+  overlay.classList.add('active');
+  fg.classList.remove('relax');
+  fg.setAttribute('stroke-dashoffset', '0');
+
+  // 通知
+  sendNotification('⏰ 整点啦！', '开始 60 秒提肛运动吧！');
+
+  // 请求屏幕常亮
+  requestWakeLock();
+
+  const phases = [
+    { label: '收 缩', cls: 'contract', isContract: true,  hint: '第 1 / 3 轮' },
+    { label: '放 松', cls: 'relax',    isContract: false, hint: '第 1 / 3 轮' },
+    { label: '收 缩', cls: 'contract', isContract: true,  hint: '第 2 / 3 轮' },
+    { label: '放 松', cls: 'relax',    isContract: false, hint: '第 2 / 3 轮' },
+    { label: '收 缩', cls: 'contract', isContract: true,  hint: '第 3 / 3 轮' },
+    { label: '放 松', cls: 'relax',    isContract: false, hint: '第 3 / 3 轮' },
+  ];
+
+  const startTime = Date.now();
+
+  function updateDots(phaseIdx) {
+    const cycleDone = Math.floor(phaseIdx / 2);
+    const inCycle = phaseIdx % 2;
+    const dots = indicator.querySelectorAll('.cycle-dot');
+    dots.forEach((dot, i) => {
+      dot.classList.remove('done', 'current');
+      if (i < cycleDone) dot.classList.add('done');
+      if (i === cycleDone && inCycle === 0) dot.classList.add('current');
+      if (i === cycleDone && inCycle === 1) dot.classList.add('done');
+    });
+  }
+
+  function runPhase(idx) {
+    if (idx >= phases.length) {
+      finishExercise();
+      return;
+    }
+
+    const p = phases[idx];
+    phaseLabel.textContent = p.label;
+    phaseLabel.className = 'phase-label ' + p.cls;
+    phaseHint.textContent = p.hint;
+    updateDots(idx);
+
+    if (p.isContract) {
+      fg.classList.remove('relax');
+      beepContract();
+    } else {
+      fg.classList.add('relax');
+      beepRelax();
+    }
+
+    const phaseStart = Date.now();
+    fg.setAttribute('stroke-dashoffset', '0');
+
+    function tick() {
+      const elapsed = (Date.now() - phaseStart) / 1000;
+      const remaining = Math.max(0, 10 - elapsed);
+
+      const globalRemaining = Math.max(0, 60 - (Date.now() - startTime) / 1000);
+      countdown.textContent = Math.ceil(globalRemaining);
+
+      const offset = (remaining / 10) * CIRCUMFERENCE;
+      fg.setAttribute('stroke-dashoffset', CIRCUMFERENCE - offset);
+
+      if (remaining <= 0) {
+        clearInterval(phaseTimer);
+        runPhase(idx + 1);
+      }
+    }
+
+    tick();
+    phaseTimer = setInterval(tick, 100);
+  }
+
+  updateDots(-1);
+  runPhase(0);
+}
+
+function finishExercise() {
+  if (phaseTimer) {
+    clearInterval(phaseTimer);
+    phaseTimer = null;
+  }
+
+  beepDone();
+  releaseWakeLock();
+  document.getElementById('overlay').classList.remove('active');
+
+  const toast = document.getElementById('doneToast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+
+  showInlineToast('✅ 运动完成！下一小时继续加油 💪');
+}
+
+function skipExercise() {
+  if (phaseTimer) {
+    clearInterval(phaseTimer);
+    phaseTimer = null;
+  }
+
+  releaseWakeLock();
+  document.getElementById('overlay').classList.remove('active');
+
+  const now = new Date();
+  currentHour = now.getHours();
+}
+
+// ===== 启动 =====
+function init() {
+  initCurrentHour();
+  checkPermission();
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // 没有通知权限时，给个友好提示
+  if (!notificationGranted && 'Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => {
+      showInlineToast('💡 点击「开启通知」按钮，整点会弹出提醒');
+    }, 1500);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+// 页面恢复可见时刷新
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    updateClock();
+    ensureAudio();
+  }
+});
+
+// 首次触摸/点击激活音频
+['click', 'touchstart'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    if (!audioCtx) initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().then(() => { audioReady = true; });
+    }
+  }, { once: false });
+});
+</script>
+
+</body>
+</html>
