@@ -67,72 +67,36 @@
     position: relative;
     z-index: 1;
     text-align: center;
-    padding: max(28px, 5vw) max(20px, 6vw);
+    padding: max(32px, 5vw) max(20px, 6vw);
     background: rgba(255,255,255,0.45);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-radius: 28px;
     box-shadow:
       0 0 0 1px rgba(255,255,255,0.5),
-      0 8px 32px rgba(59,130,196,0.1),
-      0 2px 8px rgba(59,130,196,0.06),
-      0 0 80px rgba(59,130,196,0.08),
-      inset 0 1px 0 rgba(255,255,255,0.6);
-    border: 1px solid rgba(255,255,255,0.4);
+      0 4px 24px rgba(59,130,196,0.08),
+      0 0 60px rgba(59,130,196,0.06),
+      inset 0 1px 0 rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.35);
     width: 100%;
     max-width: 560px;
+    min-height: 82vh;
+    min-height: 82dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
-    animation: clockPulse 6s ease-in-out infinite;
   }
 
-  /* 辉光脉冲 */
-  @keyframes clockPulse {
-    0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.5), 0 8px 32px rgba(59,130,196,0.1), 0 2px 8px rgba(59,130,196,0.06), 0 0 80px rgba(59,130,196,0.08), inset 0 1px 0 rgba(255,255,255,0.6); }
-    50% { box-shadow: 0 0 0 1px rgba(255,255,255,0.6), 0 8px 32px rgba(59,130,196,0.14), 0 2px 8px rgba(59,130,196,0.08), 0 0 100px rgba(59,130,196,0.12), inset 0 1px 0 rgba(255,255,255,0.7); }
-  }
-
-  /* 扫描线 */
-  .clock-container::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(59,130,196,0.15), transparent);
-    animation: scanLine 4s linear infinite;
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  @keyframes scanLine {
-    0% { top: 0; opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { top: 100%; opacity: 0; }
-  }
-
-  /* 四角装饰 */
-  .clock-container::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: 29px;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(59,130,196,0.15) 30%, transparent 50%, rgba(59,130,196,0.1) 70%, rgba(255,255,255,0.4) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* 竖屏默认：上下堆叠 */
+  /* 竖屏默认：上下堆叠，内部元素用 margin 撑开 */
   .clock-inner {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 0;
+    width: 100%;
+    flex: 1;
   }
 
   .clock-left {
@@ -310,28 +274,15 @@
     border-radius: 28px;
     box-shadow:
       0 0 0 1px rgba(255,255,255,0.5),
-      0 8px 32px rgba(59,130,196,0.1),
-      0 0 80px rgba(59,130,196,0.08),
-      inset 0 1px 0 rgba(255,255,255,0.6);
-    border: 1px solid rgba(255,255,255,0.4);
+      0 4px 24px rgba(59,130,196,0.08),
+      0 0 60px rgba(59,130,196,0.06),
+      inset 0 1px 0 rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.35);
     width: 100%;
     max-width: 440px;
     overflow: hidden;
     position: relative;
     z-index: 1;
-  }
-
-  .exercise-card::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(59,130,196,0.15), transparent);
-    animation: scanLine 4s linear infinite;
-    pointer-events: none;
-    z-index: 2;
   }
 
   /* 竖屏默认：上下堆叠 */
@@ -536,8 +487,8 @@
   /* ===== 桌面/平板横屏布局 ===== */
   @media (min-width: 768px) and (orientation: landscape) {
     body { align-items: center; padding-top: max(16px, var(--safe-top)); }
-    /* 时钟：左右分区 */
-    .clock-container { max-width: 680px; }
+    /* 取消全高卡片，回到内容自适应 */
+    .clock-container { min-height: auto; max-width: 680px; }
     .clock-inner {
       flex-direction: row;
       align-items: center;
