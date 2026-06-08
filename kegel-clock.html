@@ -444,12 +444,13 @@
   <div class="clock-label">提 肛 时 钟</div>
   <div class="clock-time" id="clockTime">00:00:00</div>
   <div class="clock-date" id="clockDate"></div>
-  <div class="next-reminder">
-    下次提醒：<span id="nextReminder">--:--</span>
+  <div class="next-reminder" id="nextReminderBox">
+    <span id="nextReminder">点击下方按钮开始计时</span>
   </div>
   <div class="btn-row">
     <button class="btn" onclick="requestPermission()" id="btnPerm">🔔 开启通知</button>
-    <button class="btn btn-primary" onclick="startExercise()">🧪 立即体验</button>
+    <button class="btn btn-primary" onclick="startCycle()" id="btnStart">▶️ 开始计时</button>
+    <button class="btn" onclick="startExercise()" id="btnTest">🧪 体验</button>
   </div>
 </div>
 
@@ -457,7 +458,7 @@
 <div class="overlay" id="overlay">
   <div class="exercise-card">
     <div class="exercise-title">🏋️ 提肛运动</div>
-    <div class="exercise-subtitle" id="exerciseSubtitle">每小时整点 · 守护健康</div>
+    <div class="exercise-subtitle" id="exerciseSubtitle">每小时提醒 · 守护健康</div>
 
     <div class="progress-ring-wrap">
       <svg class="progress-ring" viewBox="0 0 200 200">
@@ -497,10 +498,12 @@
 <script>
 // ===== 全局状态 =====
 let phaseTimer = null;
-let currentHour = -1;
 let notificationGranted = false;
 let audioReady = false;
 let wakeLock = null;
+let cycleActive = false;      // 计时周期是否已启动
+let nextTriggerTime = null;   // 下次提醒的时间戳 (ms)
+let lastDay = null;           // 上次所在日期，用于每日重置
 
 // ===== PWA 安装 =====
 let deferredPrompt = null;
@@ -623,7 +626,7 @@ function beepDone() {
   vibrate([100, 50, 100, 50, 200]);
 }
 
-// ===== 时钟显示 =====
+// ===== 时钟显示 + 周期检测 =====
 function updateClock() {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
@@ -639,24 +642,72 @@ function updateClock() {
   const w = weekdays[now.getDay()];
   document.getElementById('clockDate').textContent = `${y}年${M}月${d}日 星期${w}`;
 
-  const nextHour = (now.getHours() + 1) % 24;
-  const nextStr = String(nextHour).padStart(2, '0') + ':00';
-  document.getElementById('nextReminder').textContent = nextStr;
+  // 每日重置：新的一天，重置周期
+  const today = now.getDate();
+  if (lastDay !== null && lastDay !== today) {
+    cycleActive = false;
+    nextTriggerTime = null;
+    updateReminderUI();
+  }
+  lastDay = today;
 
-  // 整点触发
-  if (now.getMinutes() === 0 && now.getSeconds() === 0 && now.getHours() !== currentHour) {
-    currentHour = now.getHours();
+  // 周期激活时，检测是否到触发时间
+  if (cycleActive && nextTriggerTime && Date.now() >= nextTriggerTime) {
+    // 推进到下一小时
+    nextTriggerTime += 60 * 60 * 1000;
     startExercise();
   }
 
-  // 跨整点重置
-  if (now.getMinutes() >= 1 && currentHour !== now.getHours()) {
-    currentHour = now.getHours();
-  }
+  // 更新倒计时显示
+  updateReminderUI();
 }
 
-function initCurrentHour() {
-  currentHour = new Date().getHours();
+function updateReminderUI() {
+  const el = document.getElementById('nextReminder');
+  const btn = document.getElementById('btnStart');
+
+  if (!cycleActive || !nextTriggerTime) {
+    el.textContent = '点击下方按钮开始计时';
+    btn.textContent = '▶️ 开始计时';
+    btn.className = 'btn btn-primary';
+    return;
+  }
+
+  const remaining = Math.max(0, nextTriggerTime - Date.now());
+  const remainMin = Math.floor(remaining / 60000);
+  const remainSec = Math.floor((remaining % 60000) / 1000);
+
+  if (remaining <= 0) {
+    el.textContent = '提醒中…';
+  } else {
+    el.textContent = `${remainMin} 分 ${String(remainSec).padStart(2,'0')} 秒后提醒`;
+  }
+
+  btn.textContent = '⏸️ 停止计时';
+  btn.className = 'btn';
+}
+
+// ===== 开始/停止计时周期 =====
+function startCycle() {
+  if (cycleActive) {
+    // 停止计时
+    cycleActive = false;
+    nextTriggerTime = null;
+    updateReminderUI();
+    showInlineToast('⏸️ 计时已停止');
+    return;
+  }
+
+  // 开始计时：60 分钟后第一次提醒
+  cycleActive = true;
+  nextTriggerTime = Date.now() + 60 * 60 * 1000;
+  lastDay = new Date().getDate();
+  updateReminderUI();
+
+  const next = new Date(nextTriggerTime);
+  const th = String(next.getHours()).padStart(2,'0');
+  const tm = String(next.getMinutes()).padStart(2,'0');
+  showInlineToast(`⏱️ 计时开始！首次提醒将在 ${th}:${tm} 触发`);
 }
 
 // ===== 通知 =====
@@ -727,7 +778,7 @@ function startExercise() {
   fg.setAttribute('stroke-dashoffset', '0');
 
   // 通知
-  sendNotification('⏰ 整点啦！', '开始 60 秒提肛运动吧！');
+  sendNotification('⏰ 时间到！', '开始 60 秒提肛运动吧！');
 
   // 请求屏幕常亮
   requestWakeLock();
@@ -828,13 +879,12 @@ function skipExercise() {
   releaseWakeLock();
   document.getElementById('overlay').classList.remove('active');
 
-  const now = new Date();
-  currentHour = now.getHours();
+  // 周期保持运行，nextTriggerTime 不变（已自动 +60min）
 }
 
 // ===== 启动 =====
 function init() {
-  initCurrentHour();
+  lastDay = new Date().getDate();
   checkPermission();
   updateClock();
   setInterval(updateClock, 1000);
