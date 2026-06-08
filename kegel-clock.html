@@ -450,8 +450,8 @@
   /* ===== 响应式 ===== */
   /* 所有常规屏幕由上面 vw/max()/min() 连续缩放覆盖，这里只处理极端场景 */
 
-  /* ===== 桌面横屏布局 (≥768px) ===== */
-  @media (min-width: 768px) {
+  /* ===== 桌面/平板横屏布局 ===== */
+  @media (min-width: 768px) and (orientation: landscape) {
     /* 时钟：左右分区 */
     .clock-container { max-width: 680px; }
     .clock-inner {
@@ -518,10 +518,25 @@
     }
   }
 
-  /* 桌面大屏：放大上限 */
-  @media (min-width: 1200px) {
+  /* 桌面大屏横屏：放大上限 */
+  @media (min-width: 1200px) and (orientation: landscape) {
     .clock-container { max-width: 760px; }
     .clock-time { font-size: min(10vw, 108px); }
+  }
+
+  /* 竖屏大屏（iPad 竖屏等）：保持堆叠但放大 */
+  @media (min-width: 768px) and (orientation: portrait) {
+    .clock-container { max-width: 620px; padding: max(40px, 7vw) max(28px, 8vw); }
+    .clock-time { font-size: min(18vw, 120px); }
+    .clock-date { font-size: max(16px, 2.2vw); }
+    .clock-label { font-size: max(14px, 2vw); }
+    .next-reminder { font-size: max(14px, 1.8vw); }
+    .btn { font-size: max(14px, 1.6vw); padding: max(12px, 1.4vw) max(20px, 3vw); }
+    .exercise-card { max-width: 540px; padding: max(40px, 6vw) max(28px, 7vw); }
+    .progress-ring-wrap { width: min(220px, 40vw); height: min(220px, 40vw); }
+    .countdown-num { font-size: min(64px, 12vw); }
+    .phase-label { font-size: max(22px, 3vw); }
+    .btn-row { margin-top: max(20px, 3vw); }
   }
 
   /* 横屏手机：仍然是竖屏手机逻辑，只是压缩高度 */
