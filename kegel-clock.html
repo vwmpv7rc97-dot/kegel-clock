@@ -50,7 +50,7 @@
   /* ===== 主时钟容器 ===== */
   .clock-container {
     text-align: center;
-    padding: 40px 36px;
+    padding: max(28px, 5vw) max(20px, 6vw);
     background: var(--white-glass);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -61,23 +61,24 @@
       inset 0 1px 0 rgba(255,255,255,0.8);
     border: 1px solid rgba(255,255,255,0.6);
     width: 100%;
-    max-width: 480px;
+    max-width: 560px;
     overflow: hidden;
   }
 
   .clock-label {
-    font-size: 14px;
+    font-size: max(12px, 1.8vw);
     color: var(--text-secondary);
-    letter-spacing: 4px;
-    margin-bottom: 10px;
+    letter-spacing: 0.3em;
+    margin-bottom: max(6px, 1.2vw);
     font-weight: 500;
   }
 
   .clock-time {
-    font-size: 80px;
+    /* 核心：15vw 确保窄屏缩小，min() 限制宽屏不超标 */
+    font-size: min(15vw, 88px);
     font-weight: 200;
     color: var(--text-primary);
-    letter-spacing: 4px;
+    letter-spacing: 0.04em;
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
@@ -87,20 +88,20 @@
   }
 
   .clock-date {
-    font-size: 16px;
+    font-size: max(12px, 1.8vw);
     color: var(--text-hint);
-    margin-top: 8px;
+    margin-top: max(4px, 0.8vw);
     font-weight: 400;
-    letter-spacing: 1px;
+    letter-spacing: 0.05em;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
   }
 
   .next-reminder {
-    margin-top: 20px;
-    font-size: 13px;
+    margin-top: max(12px, 2vw);
+    font-size: max(11px, 1.5vw);
     color: #8ab8d8;
-    letter-spacing: 1px;
+    letter-spacing: 0.08em;
   }
 
   .next-reminder span {
@@ -110,7 +111,7 @@
 
   /* ===== 按钮区 ===== */
   .btn-row {
-    margin-top: 24px;
+    margin-top: max(14px, 2.5vw);
     display: flex;
     gap: 10px;
     justify-content: center;
@@ -118,14 +119,14 @@
   }
 
   .btn {
-    padding: 11px 22px;
+    padding: max(10px, 1.2vw) max(16px, 2.5vw);
     border-radius: 20px;
     border: 1px solid rgba(59,130,196,0.2);
     background: rgba(255,255,255,0.6);
     color: #5a9ec4;
-    font-size: 14px;
+    font-size: max(12px, 1.5vw);
     cursor: pointer;
-    letter-spacing: 1px;
+    letter-spacing: 0.08em;
     font-family: inherit;
     min-height: 44px;
     white-space: nowrap;
@@ -216,7 +217,7 @@
 
   .exercise-card {
     text-align: center;
-    padding: 40px 36px;
+    padding: max(28px, 5vw) max(20px, 6vw);
     background: var(--white-glass);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -232,26 +233,26 @@
   }
 
   .exercise-title {
-    font-size: 20px;
+    font-size: max(16px, 2.2vw);
     color: var(--text-primary);
-    letter-spacing: 2px;
+    letter-spacing: 0.1em;
     margin-bottom: 6px;
     font-weight: 500;
   }
 
   .exercise-subtitle {
-    font-size: 13px;
+    font-size: max(11px, 1.5vw);
     color: var(--text-hint);
-    margin-bottom: 30px;
-    letter-spacing: 1px;
+    margin-bottom: max(16px, 3vw);
+    letter-spacing: 0.08em;
   }
 
   /* 圆形进度 */
   .progress-ring-wrap {
     position: relative;
-    width: 180px;
-    height: 180px;
-    margin: 0 auto 24px;
+    width: min(180px, 35vw);
+    height: min(180px, 35vw);
+    margin: 0 auto max(14px, 2.5vw);
   }
 
   .progress-ring {
@@ -284,7 +285,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 56px;
+    font-size: min(56px, 11vw);
     font-weight: 200;
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
@@ -292,9 +293,9 @@
   }
 
   .phase-label {
-    font-size: 26px;
+    font-size: max(18px, 2.8vw);
     font-weight: 500;
-    letter-spacing: 3px;
+    letter-spacing: 0.12em;
     margin-bottom: 4px;
     transition: color 0.3s;
   }
@@ -303,10 +304,10 @@
   .phase-label.relax { color: var(--relax); }
 
   .phase-hint {
-    font-size: 13px;
+    font-size: max(11px, 1.5vw);
     color: var(--text-hint);
-    margin-top: 18px;
-    letter-spacing: 1px;
+    margin-top: max(10px, 1.8vw);
+    letter-spacing: 0.08em;
   }
 
   .cycle-indicator {
@@ -332,15 +333,15 @@
   }
 
   .btn-skip {
-    margin-top: 26px;
-    padding: 10px 22px;
+    margin-top: max(14px, 2.5vw);
+    padding: max(8px, 1vw) max(16px, 2vw);
     border-radius: 16px;
     border: 1px solid rgba(59,130,196,0.15);
     background: rgba(255,255,255,0.5);
     color: var(--text-hint);
-    font-size: 13px;
+    font-size: max(11px, 1.4vw);
     cursor: pointer;
-    letter-spacing: 1px;
+    letter-spacing: 0.08em;
     font-family: inherit;
     min-height: 44px;
     -webkit-tap-highlight-color: transparent;
@@ -362,7 +363,7 @@
     -webkit-backdrop-filter: blur(16px);
     padding: 14px 28px;
     border-radius: 20px;
-    font-size: 15px;
+    font-size: max(13px, 1.6vw);
     color: var(--text-primary);
     letter-spacing: 2px;
     box-shadow: 0 8px 32px rgba(59,130,196,0.12);
@@ -409,65 +410,30 @@
   }
 
   /* ===== 响应式 ===== */
-  /* 小手机 (320-374px: iPhone SE) */
-  @media (max-width: 374px) {
-    .clock-container { padding: 24px 16px; border-radius: 20px; }
-    .clock-time { font-size: 46px; letter-spacing: 2px; }
-    .clock-date { font-size: 12px; }
-    .clock-label { font-size: 12px; letter-spacing: 2px; margin-bottom: 6px; }
-    .next-reminder { font-size: 11px; margin-top: 12px; }
-    .btn { font-size: 12px; padding: 10px 14px; min-height: 40px; }
-    .btn-row { gap: 6px; margin-top: 14px; }
-    .exercise-card { padding: 24px 16px; border-radius: 20px; }
-    .exercise-title { font-size: 17px; }
-    .exercise-subtitle { font-size: 11px; margin-bottom: 18px; }
-    .progress-ring-wrap { width: 110px; height: 110px; margin-bottom: 12px; }
-    .countdown-num { font-size: 32px; }
-    .phase-label { font-size: 18px; letter-spacing: 2px; }
-    .phase-hint { font-size: 11px; margin-top: 12px; }
-    .btn-skip { margin-top: 14px; font-size: 11px; min-height: 40px; }
+  /* 所有常规屏幕由上面 vw/max()/min() 连续缩放覆盖，这里只处理极端场景 */
+
+  /* 桌面大屏：放大上限 */
+  @media (min-width: 1200px) {
+    .clock-container { max-width: 600px; }
+    .clock-time { font-size: min(14vw, 96px); }
   }
 
-  /* 普通手机 (375-430px: iPhone 14/15) */
-  @media (min-width: 375px) and (max-width: 430px) {
-    .clock-container { padding: 30px 22px; }
-    .clock-time { font-size: 60px; letter-spacing: 3px; }
-    .clock-date { font-size: 13px; }
-    .exercise-card { padding: 30px 22px; }
-    .progress-ring-wrap { width: 140px; height: 140px; }
-    .countdown-num { font-size: 42px; }
-    .phase-label { font-size: 22px; }
-  }
-
-  /* 桌面端 (1024px+) */
-  @media (min-width: 1024px) {
-    .clock-container { padding: 60px 80px; max-width: 560px; }
-    .clock-time { font-size: 120px; letter-spacing: 8px; }
-    .clock-date { font-size: 20px; }
-    .clock-label { font-size: 16px; }
-    .exercise-card { padding: 60px 80px; }
-    .progress-ring-wrap { width: 200px; height: 200px; }
-    .countdown-num { font-size: 64px; }
-  }
-
-  /* 横屏手机 */
+  /* 横屏手机：压缩纵向空间 */
   @media (max-height: 500px) and (orientation: landscape) {
-    body { align-items: flex-start; padding-top: 8px; }
-    .clock-container { padding: 14px 24px; border-radius: 18px; }
-    .clock-time { font-size: 38px; letter-spacing: 2px; }
-    .clock-date { font-size: 11px; margin-top: 4px; }
-    .clock-label { font-size: 10px; margin-bottom: 4px; letter-spacing: 2px; }
-    .next-reminder { margin-top: 6px; font-size: 10px; }
+    body { align-items: flex-start; padding-top: 6px; }
+    .clock-container { padding: 10px 6vw; border-radius: 16px; }
+    .clock-time { font-size: min(15vw, 48px); }
+    .clock-label { margin-bottom: 2px; }
+    .next-reminder { margin-top: 6px; }
     .btn-row { margin-top: 8px; gap: 6px; }
-    .btn { font-size: 11px; padding: 7px 12px; min-height: 34px; }
-    .exercise-card { padding: 14px 24px; border-radius: 18px; }
-    .exercise-title { font-size: 15px; }
-    .exercise-subtitle { margin-bottom: 8px; font-size: 10px; }
-    .progress-ring-wrap { width: 80px; height: 80px; margin-bottom: 6px; }
-    .countdown-num { font-size: 28px; }
-    .phase-label { font-size: 15px; }
-    .phase-hint { margin-top: 6px; font-size: 10px; }
-    .btn-skip { margin-top: 8px; min-height: 34px; padding: 5px 14px; font-size: 10px; }
+    .btn { min-height: 36px; }
+    .exercise-card { padding: 10px 6vw; border-radius: 16px; }
+    .exercise-subtitle { margin-bottom: 10px; }
+    .progress-ring-wrap { width: min(100px, 18vw); height: min(100px, 18vw); margin-bottom: 6px; }
+    .countdown-num { font-size: min(32px, 6vw); }
+    .phase-label { font-size: max(14px, 2.5vw); }
+    .phase-hint { margin-top: 6px; }
+    .btn-skip { margin-top: 8px; min-height: 36px; }
   }
 </style>
 </head>
