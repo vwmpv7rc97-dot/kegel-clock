@@ -44,6 +44,7 @@ input[type=file]{display:none}
 
 .help-section{background:var(--panel);border-top:1px solid var(--border);padding:14px 20px;max-height:200px;overflow-y:auto;flex-shrink:0;display:none}
 .help-section pre{background:#1a1d23;padding:12px;border-radius:6px;font-size:11px;overflow-x:auto;color:var(--text)}
+@keyframes aiGlow{0%,100%{box-shadow:0 0 20px rgba(77,120,204,.4)}50%{box-shadow:0 0 40px rgba(97,175,239,.7)}}
 .help-section code{font-family:'SF Mono',Monaco,monospace}
 
 @media(max-width:800px){
@@ -67,6 +68,7 @@ input[type=file]{display:none}
     <button class="btn btn-sm" onclick="document.getElementById('importInput').click()">📥 导入方案</button>
     <input type="file" id="importInput" accept=".json">
     <button class="btn btn-sm" onclick="screenshot()">📸 截图</button>
+    <button class="btn" style="background:linear-gradient(135deg,#4d78cc,#61afef);color:#fff;font-size:15px;font-weight:700;padding:10px 20px;border:none;box-shadow:0 0 20px rgba(77,120,204,.4);animation:aiGlow 2s ease-in-out infinite;border-radius:8px;cursor:pointer" onclick="aiRender3D()">🤖 AI 一键3D渲染</button>
     <button class="btn btn-sm" onclick="detectPipes()">🔧 管道3D化</button>
     <button class="btn btn-sm" onclick="clearAllPlaceholders()">🗑 清除全部</button>
     <button class="btn btn-sm" onclick="toggleHelp()">❓ 帮助</button>
@@ -389,6 +391,65 @@ function detectPipes(){
   render2D();statusBar.textContent=`已生成 ${segments.length} 段3D管道 + ${segments.length*2} 个端点占位符`;
 }
 window.detectPipes=detectPipes;
+
+// AI 一键3D渲染：检测圆形(阀门/法兰) + 管道线条，自动生成完整3D场景
+async function aiRender3D(){
+  if(!state.drawingImg){statusBar.textContent='请先上传图纸';return}
+  statusBar.textContent='🤖 AI 分析图纸中…';
+  await new Promise(r=>setTimeout(r,100)); // 让UI刷新
+
+  // 1. 管道检测
+  const cvs=document.createElement('canvas');cvs.width=state.drawingW;cvs.height=state.drawingH;
+  const ctx=cvs.getContext('2d');ctx.drawImage(state.drawingImg,0,0);
+  const imgData=ctx.getImageData(0,0,state.drawingW,state.drawingH);
+  const d=imgData.data;const w=state.drawingW,h=state.drawingH;
+
+  // 管道线段检测
+  const darkPts=[];const step=3;
+  for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step){const i=(y*w+x)*4;if((d[i]+d[i+1]+d[i+2])/3<100)darkPts.push({x,y})}
+  const segments=[];const visited=new Set();const threshold=8;
+  for(const pt of darkPts){
+    const k=`${pt.x},${pt.y}`;if(visited.has(k))continue;
+    let xEnd=pt.x;while(xEnd<w-1&&darkPts.some(p=>p.y>=pt.y-threshold&&p.y<=pt.y+threshold&&p.x===xEnd+step))xEnd+=step;
+    if(xEnd-pt.x>30){segments.push({x1:pt.x,y1:pt.y,x2:xEnd,y2:pt.y,dir:'h'});for(let x=pt.x;x<=xEnd;x+=step)visited.add(`${x},${pt.y}`)}
+    let yEnd=pt.y;while(yEnd<h-1&&darkPts.some(p=>p.x>=pt.x-threshold&&p.x<=pt.x+threshold&&p.y===yEnd+step))yEnd+=step;
+    if(yEnd-pt.y>30){segments.push({x1:pt.x,y1:pt.y,x2:pt.x,y2:yEnd,dir:'v'});for(let y=pt.y;y<=yEnd;y+=step)visited.add(`${pt.x},${y}`)}
+  }
+
+  // 2. 圆形检测（阀门/法兰）- Hough圆检测简化版
+  const circles=[];const edgePts=[];
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4;const g=(d[i]+d[i+1]+d[i+2])/3;if(g<120){const gx=Math.abs((d[((y)*w+x-1)]-d[((y)*w+x+1)])/3);const gy=Math.abs((d[((y-1)*w+x)]-d[((y+1)*w+x)])/3);if(gx>20||gy>20)edgePts.push({x,y})}}
+  for(let r=10;r<=60;r+=5){
+    const acc=new Map();
+    for(const pt of edgePts){const cx=Math.round(pt.x/r)*r,cy=Math.round(pt.y/r)*r;const key=`${cx},${cy},${r}`;acc.set(key,(acc.get(key)||0)+1)}
+    for(const[key,cnt]of acc){if(cnt>r*0.3){const[cx,cy]=key.split(',').map(Number);const tooClose=circles.some(c=>Math.hypot(c.x-cx,c.y-cy)<c.r+r);if(!tooClose)circles.push({x:cx,y:cy,r})}}
+  }
+
+  // 3. 生成3D
+  clearAllPlaceholders();
+  // 管道
+  for(const seg of segments){
+    const x1=(seg.x1/w-0.5)*10,z1=(seg.y1/h-0.5)*10,x2=(seg.x2/w-0.5)*10,z2=(seg.y2/h-0.5)*10;
+    const mx=(x1+x2)/2,mz=(z1+z2)/2,len=Math.hypot(x2-x1,z2-z1),angle=Math.atan2(z2-z1,x2-x1);
+    const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,len,8),new THREE.MeshStandardMaterial({color:0x4d78cc,metalness:0.7,roughness:0.3}));
+    pipe.position.set(mx,0.3,mz);pipe.rotation.z=Math.PI/2;pipe.rotation.y=-angle;pipe.userData={isPipe:true};scene.add(pipe);
+  }
+  // 圆形 → 法兰/阀门占位符
+  for(const circ of circles){
+    const x3d=(circ.x/w-0.5)*10,z3d=(circ.y/h-0.5)*10;
+    const id=state.nextId++;const label=circ.r>30?'阀门'+id:'法兰'+id;
+    const ph={id,x:circ.x,y:circ.y,x3d,z3d,label,product:null};state.placeholders.push(ph);add3DPlaceholder(ph);
+  }
+  // 管端占位符
+  for(const seg of segments){
+    const x1=(seg.x1/w-0.5)*10,z1=(seg.y1/h-0.5)*10,x2=(seg.x2/w-0.5)*10,z2=(seg.y2/h-0.5)*10;
+    const id1=state.nextId++;state.placeholders.push({id:id1,x:seg.x1,y:seg.y1,x3d:x1,z3d:z1,label:'端'+id1,product:null});add3DPlaceholder(state.placeholders[state.placeholders.length-1]);
+    const id2=state.nextId++;state.placeholders.push({id:id2,x:seg.x2,y:seg.y2,x3d:x2,z3d:z2,label:'端'+id2,product:null});add3DPlaceholder(state.placeholders[state.placeholders.length-1]);
+  }
+  render2D();updateGroundTexture();
+  statusBar.textContent=`✅ AI完成：${segments.length}段管道 + ${circles.length}个阀门/法兰`;
+}
+window.aiRender3D=aiRender3D;
 
 function clearAllPlaceholders(){
   state.placeholders=[];render2D();rebuild3D();statusBar.textContent='已清除全部';
