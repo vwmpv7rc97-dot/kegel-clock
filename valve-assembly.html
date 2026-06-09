@@ -68,7 +68,8 @@ input[type=file]{display:none}
     <button class="btn btn-sm" onclick="document.getElementById('importInput').click()">📥 导入方案</button>
     <input type="file" id="importInput" accept=".json">
     <button class="btn btn-sm" onclick="screenshot()">📸 截图</button>
-    <button class="btn" style="background:linear-gradient(135deg,#4d78cc,#61afef);color:#fff;font-size:15px;font-weight:700;padding:10px 20px;border:none;box-shadow:0 0 20px rgba(77,120,204,.4);animation:aiGlow 2s ease-in-out infinite;border-radius:8px;cursor:pointer" onclick="aiRender3D()">🤖 AI 一键3D渲染</button>
+    <button class="btn" style="background:linear-gradient(135deg,#4d78cc,#61afef);color:#fff;font-size:15px;font-weight:700;padding:10px 20px;border:none;box-shadow:0 0 20px rgba(77,120,204,.4);animation:aiGlow 2s ease-in-out infinite;border-radius:8px;cursor:pointer" onclick="document.getElementById('aiFileInput').click()">🤖 AI 一键3D渲染</button>
+    <input type="file" id="aiFileInput" accept="image/*,.pdf" style="display:none">
     <button class="btn btn-sm" onclick="detectPipes()">🔧 管道3D化</button>
     <button class="btn btn-sm" onclick="clearAllPlaceholders()">🗑 清除全部</button>
     <button class="btn btn-sm" onclick="toggleHelp()">❓ 帮助</button>
@@ -81,6 +82,9 @@ input[type=file]{display:none}
   <div class="panel panel-2d" id="panel2d" style="flex-direction:column">
     <div style="flex:1;position:relative;width:100%;display:flex;align-items:center;justify-content:center">
       <canvas id="drawingCanvas"></canvas>
+      <div id="drawingPlaceholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#555;font-size:14px;pointer-events:none;text-align:center;line-height:2">
+        📂 拖拽图纸到此处<br>或点击顶部按钮上传<br><br><span style="color:#4d78cc">🤖 点顶部 AI 按钮<br>上传PDF自动3D化</span>
+      </div>
       <div class="placeholder-list" id="phList"></div>
     </div>
     <div id="thumbStrip" style="display:flex;flex-wrap:wrap;padding:4px;gap:2px;background:rgba(0,0,0,.3);min-height:48px;align-items:center;overflow-x:auto"></div>
@@ -263,7 +267,8 @@ window.addDemoDrawing=addDemoDrawing;
 // ===== 2D 渲染 =====
 function render2D(){
   drawingCtx.clearRect(0,0,drawingCvs.width,drawingCvs.height);
-  if(!state.drawingImg)return;
+  if(!state.drawingImg){$('drawingPlaceholder').style.display='flex';return}
+  $('drawingPlaceholder').style.display='none';
   const s=Math.min(drawingCvs.width/state.drawingW,drawingCvs.height/state.drawingH);
   const w=state.drawingW*s,h=state.drawingH*s;
   const ox=(drawingCvs.width-w)/2,oy=(drawingCvs.height-h)/2;
@@ -430,6 +435,34 @@ async function aiRender3D(){
   statusBar.textContent=`✅ AI完成：${segments.length}段管道 + ${circles.length}个阀门/法兰`;
 }
 window.aiRender3D=aiRender3D;
+
+// AI 按钮文件处理：上传PDF/图片 → 自动加载 → AI分析 → 3D渲染
+$('aiFileInput').addEventListener('change',async function(){
+  const f=this.files[0];if(!f)return;
+  statusBar.textContent='🤖 AI 处理中…';
+  $('drawingPlaceholder').style.display='none';
+
+  // 加载图纸
+  if(f.type==='application/pdf'||f.name.endsWith('.pdf')){
+    if(typeof pdfjsLib==='undefined'){statusBar.textContent='PDF组件加载中，请稍后';return}
+    const arr=new Uint8Array(await f.arrayBuffer());
+    const pdf=await pdfjsLib.getDocument({data:arr}).promise;
+    const page=await pdf.getPage(1);const vp=page.getViewport({scale:1.5});
+    const cvs=document.createElement('canvas');cvs.width=vp.width;cvs.height=vp.height;
+    await page.render({canvasContext:cvs.getContext('2d'),viewport:vp}).promise;
+    state.drawingImg=cvs;state.drawingW=cvs.width;state.drawingH=cvs.height;
+    state.drawings=[{img:cvs,w:cvs.width,h:cvs.height,name:f.name}];state.currentDrawing=0;
+  }else{
+    await new Promise(res=>{const img=new Image();img.onload=()=>res();img.src=URL.createObjectURL(f)});
+    const img=new Image();img.src=URL.createObjectURL(f);
+    await new Promise(res=>{img.onload=()=>{state.drawingImg=img;state.drawingW=img.width;state.drawingH=img.height;state.drawings=[{img,w:img.width,h:img.height,name:f.name}];state.currentDrawing=0;res()}});
+  }
+  $('drawingPlaceholder').style.display='none';render2D();renderDrawingThumbs();updateGroundTexture();
+
+  // 自动 AI 分析
+  await aiRender3D();
+  statusBar.textContent='✅ AI 3D渲染完成 · 点击占位符装配产品';
+});
 
 function clearAllPlaceholders(){
   state.placeholders=[];render2D();rebuild3D();statusBar.textContent='已清除全部';
