@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工业阀门三维装配演示</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#1a1d23;--panel:#21252b;--border:#333842;--text:#abb2bf;--accent:#4d78cc;--accent2:#61afef;--danger:#e06c75;--success:#98c379;--warning:#e5c07b}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+header h1{font-size:16px;font-weight:600;color:#fff;white-space:nowrap}
+header .toolbar{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.btn{padding:7px 14px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s}
+.btn:hover{background:#2c313a;border-color:#5a5f6b}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-accent:hover{background:#5a8adf}
+.btn-danger{color:var(--danger)}
+.btn-danger:hover{background:rgba(224,108,117,.1)}
+.btn-sm{padding:4px 10px;font-size:11px}
+input[type=file]{display:none}
+
+.main{display:flex;flex:1;overflow:hidden}
+.panel{position:relative;overflow:hidden}
+.panel-2d{flex:1;min-width:200px;background:#1e2127;border-right:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:crosshair}
+.panel-2d canvas{max-width:100%;max-height:100%;object-fit:contain}
+.panel-3d{flex:2;min-width:300px;background:#000}
+.panel-lib{width:200px;background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;padding:10px;flex-shrink:0}
+.panel-lib h3{font-size:13px;color:#fff;margin-bottom:10px;text-align:center}
+
+.lib-item{background:#2c313a;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;text-align:center;transition:all .15s}
+.lib-item:hover{border-color:var(--accent);background:#303640}
+.lib-item.selected{border-color:var(--accent2);box-shadow:0 0 8px rgba(97,175,239,.3)}
+.lib-item .preview{width:60px;height:60px;margin:0 auto 6px;background:#1a1d23;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.lib-item .name{font-size:11px;color:var(--text)}
+
+.resize-handle{width:4px;background:var(--border);cursor:col-resize;flex-shrink:0;transition:background .2s}
+.resize-handle:hover{background:var(--accent)}
+
+.placeholder-list{position:absolute;top:8px;right:8px;background:rgba(33,37,43,.9);border:1px solid var(--border);border-radius:8px;padding:8px;max-height:60%;overflow-y:auto;font-size:11px;min-width:120px;z-index:10}
+.placeholder-list .ph-item{display:flex;align-items:center;justify-content:space-between;padding:3px 6px;border-radius:4px;margin:2px 0;cursor:pointer}
+.placeholder-list .ph-item:hover{background:rgba(255,255,255,.05)}
+.placeholder-list .ph-item .del{color:var(--danger);cursor:pointer;margin-left:8px}
+
+.help-section{background:var(--panel);border-top:1px solid var(--border);padding:14px 20px;max-height:200px;overflow-y:auto;flex-shrink:0;display:none}
+.help-section pre{background:#1a1d23;padding:12px;border-radius:6px;font-size:11px;overflow-x:auto;color:var(--text)}
+.help-section code{font-family:'SF Mono',Monaco,monospace}
+
+@media(max-width:800px){
+  .main{flex-direction:column}
+  .panel-2d{flex:none;height:40vh}
+  .panel-3d{flex:1}
+  .panel-lib{width:100%;max-height:120px;display:flex;gap:8px;overflow-x:auto;flex-direction:row}
+  .lib-item{min-width:80px;flex-shrink:0}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏭 工业阀门三维装配</h1>
+  <div class="toolbar">
+    <button class="btn btn-sm" onclick="document.getElementById('fileInput').click()">📁 上传图纸</button>
+    <input type="file" id="fileInput" accept="image/*,.pdf">
+    <button class="btn btn-sm" onclick="addDemoDrawing()">📐 示例图纸</button>
+    <button class="btn btn-sm" onclick="exportJSON()">💾 导出方案</button>
+    <button class="btn btn-sm" onclick="document.getElementById('importInput').click()">📥 导入方案</button>
+    <input type="file" id="importInput" accept=".json">
+    <button class="btn btn-sm" onclick="screenshot()">📸 截图</button>
+    <button class="btn btn-sm" onclick="clearAllPlaceholders()">🗑 清除全部</button>
+    <button class="btn btn-sm" onclick="toggleHelp()">❓ 帮助</button>
+    <span id="statusBar" style="font-size:11px;color:var(--text-secondary);margin-left:8px">就绪</span>
+  </div>
+</header>
+
+<div class="main" id="mainContainer">
+  <!-- 2D 图纸面板 -->
+  <div class="panel panel-2d" id="panel2d">
+    <canvas id="drawingCanvas"></canvas>
+    <div class="placeholder-list" id="phList"></div>
+  </div>
+
+  <div class="resize-handle" id="resizeHandle"></div>
+
+  <!-- 3D 场景 -->
+  <div class="panel panel-3d" id="panel3d"></div>
+
+  <div class="resize-handle" style="cursor:default;background:transparent"></div>
+
+  <!-- 产品库 -->
+  <div class="panel-lib" id="panelLib">
+    <h3>📦 产品库</h3>
+    <div id="libItems"></div>
+  </div>
+</div>
+
+<!-- 帮助区 -->
+<div class="help-section" id="helpSection">
+  <h3 style="color:#fff;margin-bottom:8px">📖 使用说明 & 模型转换脚本</h3>
+  <p style="font-size:12px;margin-bottom:10px">
+    1. 上传CAD图纸(PNG/JPG/PDF) → 2. 点击图纸放置占位符 → 3. 从产品库选产品 → 4. 点击占位符放置模型 → 5. 导出/保存方案<br>
+    将你自己的 GLTF 模型文件放入与 HTML 同目录的 <code>models/</code> 文件夹，刷新页面即可自动加载。
+  </p>
+  <h4 style="color:var(--warning);margin:8px 0">Python 模型转换脚本 (STEP/STL/OBJ → GLTF)</h4>
+  <pre><code># 安装: pip install trimesh pygltf
+import trimesh, os, json
+
+def convert_to_gltf(input_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    for f in os.listdir(input_dir):
+        if f.endswith(('.step','.stp','.stl','.obj','.ply')):
+            mesh = trimesh.load(os.path.join(input_dir, f))
+            mesh.apply_scale(0.001)  # mm → m
+            if hasattr(mesh, 'visual'):
+                mesh.visual.material = trimesh.visual.material.PBRMaterial(
+                    baseColorFactor=[0.7,0.7,0.8,1], metallicFactor=0.8, roughnessFactor=0.4)
+            out = os.path.join(output_dir, f.rsplit('.',1)[0]+'.gltf')
+            mesh.export(out, file_type='gltf')
+            print(f'✅ {f} → {out}')
+
+convert_to_gltf('./cad_models/', './models/')</code></pre>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ===== 全局状态 =====
+const state = {
+  drawingImg: null,
+  drawingW: 800, drawingH: 600,
+  placeholders: [],     // {id, x, y, x3d, z3d, label, product:null}
+  selectedProduct: null,
+  nextId: 1,
+  products: [],
+};
+
+// ===== DOM 元素 =====
+const $=id=>document.getElementById(id);
+const panel2d=$('panel2d'),panel3d=$('panel3d'),drawingCvs=$('drawingCanvas'),drawingCtx=drawingCvs.getContext('2d');
+const phList=$('phList'),libItems=$('libItems'),statusBar=$('statusBar');
+
+// ===== 2D 画布尺寸适配 =====
+function resizeCanvas(){drawingCvs.width=panel2d.clientWidth-4;drawingCvs.height=panel2d.clientHeight-4}
+new ResizeObserver(resizeCanvas).observe(panel2d);
+resizeCanvas();
+
+// ===== 分屏拖拽 =====
+let isResizing=false;
+$('resizeHandle').addEventListener('mousedown',e=>{isResizing=true;e.preventDefault()});
+window.addEventListener('mousemove',e=>{if(!isResizing)return;const r=document.getElementById('mainContainer').getBoundingClientRect();const pct=((e.clientX-r.left)/r.width)*100;panel2d.style.flex=`0 0 ${Math.max(15,Math.min(60,pct))}%`;panel3d.style.flex='1'});
+window.addEventListener('mouseup',()=>{isResizing=false});
+
+// ===== 上传图纸 =====
+$('fileInput').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  statusBar.textContent='加载图纸…';
+  if(f.type==='application/pdf'||f.name.endsWith('.pdf')){
+    const arr=new Uint8Array(await f.arrayBuffer());
+    const pdf=await pdfjsLib.getDocument({data:arr}).promise;
+    const page=await pdf.getPage(1);
+    const vp=page.getViewport({scale:1.5});
+    const cvs=document.createElement('canvas');cvs.width=vp.width;cvs.height=vp.height;
+    await page.render({canvasContext:cvs.getContext('2d'),viewport:vp}).promise;
+    loadDrawing(cvs);
+  }else{
+    const img=new Image();img.onload=()=>loadDrawing(img);
+    img.src=URL.createObjectURL(f);
+  }
+});
+
+function loadDrawing(img){
+  state.drawingImg=img;state.drawingW=img.width;state.drawingH=img.height;
+  render2D();statusBar.textContent=`图纸已加载 (${img.width}×${img.height})`;
+}
+
+// ===== 示例图纸 =====
+function addDemoDrawing(){
+  const cvs=document.createElement('canvas');cvs.width=800;cvs.height=600;
+  const ctx=cvs.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,800,600);
+  ctx.strokeStyle='#333';ctx.lineWidth=2;
+  ctx.strokeRect(100,200,600,100);
+  ctx.strokeRect(100,100,500,80);
+  ctx.strokeRect(300,300,200,150);
+  // 法兰标记
+  ctx.beginPath();ctx.arc(100,250,20,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(700,250,20,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(300,375,20,0,Math.PI*2);ctx.stroke();
+  ctx.font='14px sans-serif';ctx.fillStyle='#333';
+  ctx.fillText('主阀门',400,200);ctx.fillText('法兰接口',200,100);
+  state.drawingImg=cvs;state.drawingW=800;state.drawingH=600;
+  render2D();statusBar.textContent='示例图纸已加载';
+}
+window.addDemoDrawing=addDemoDrawing;
+
+// ===== 2D 渲染 =====
+function render2D(){
+  drawingCtx.clearRect(0,0,drawingCvs.width,drawingCvs.height);
+  if(!state.drawingImg)return;
+  const s=Math.min(drawingCvs.width/state.drawingW,drawingCvs.height/state.drawingH);
+  const w=state.drawingW*s,h=state.drawingH*s;
+  const ox=(drawingCvs.width-w)/2,oy=(drawingCvs.height-h)/2;
+  drawingCtx.drawImage(state.drawingImg,ox,oy,w,h);
+  // 占位符
+  for(const ph of state.placeholders){
+    const cx=ox+ph.x*s,cy=oy+ph.y*s;
+    drawingCtx.fillStyle='rgba(77,120,204,0.3)';drawingCtx.strokeStyle='#4d78cc';drawingCtx.lineWidth=2;
+    drawingCtx.beginPath();drawingCtx.arc(cx,cy,12,0,Math.PI*2);drawingCtx.fill();drawingCtx.stroke();
+    drawingCtx.fillStyle='#fff';drawingCtx.font='11px sans-serif';drawingCtx.textAlign='center';
+    drawingCtx.fillText(ph.label||'?',cx,cy+4);
+  }
+  updatePHList();
+}
+
+function updatePHList(){
+  phList.innerHTML='';
+  for(const ph of state.placeholders){
+    const d=document.createElement('div');d.className='ph-item';
+    d.innerHTML=`<span>📍 ${ph.label}${ph.product?'✅':''}</span><span class="del" data-id="${ph.id}">✕</span>`;
+    d.querySelector('.del').addEventListener('click',e=>{e.stopPropagation();removePH(ph.id)});
+    phList.appendChild(d);
+  }
+}
+
+// 2D 图纸点击 → 添加占位符
+panel2d.addEventListener('click',e=>{
+  if(!state.drawingImg||e.target!==drawingCvs)return;
+  const r=drawingCvs.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  const s=Math.min(drawingCvs.width/state.drawingW,drawingCvs.height/state.drawingH);
+  const w=state.drawingW*s,h=state.drawingH*s;
+  const ox=(drawingCvs.width-w)/2,oy=(drawingCvs.height-h)/2;
+  const dx=(mx-ox)/s,dy=(my-oy)/s;
+  if(dx<0||dy<0||dx>state.drawingW||dy>state.drawingH)return;
+  const x3d=(dx/state.drawingW-0.5)*10;
+  const z3d=(dy/state.drawingH-0.5)*10;
+  addPlaceholder(dx,dy,x3d,z3d);
+});
+
+function addPlaceholder(x,y,x3d,z3d){
+  const id=state.nextId++;
+  const ph={id,x,y,x3d,z3d,label:`阀门${id}`,product:null};
+  state.placeholders.push(ph);
+  render2D();add3DPlaceholder(ph);statusBar.textContent=`已添加: ${ph.label}`;
+}
+window.addPlaceholder=addPlaceholder;
+
+function removePH(id){
+  state.placeholders=state.placeholders.filter(p=>p.id!==id);
+  render2D();rebuild3D();statusBar.textContent='已删除占位符';
+}
+window.removePH=removePH;
+
+function clearAllPlaceholders(){
+  state.placeholders=[];render2D();rebuild3D();statusBar.textContent='已清除全部';
+}
+window.clearAllPlaceholders=clearAllPlaceholders;
+
+// ===== Three.js 3D 场景 =====
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x1a1d23);
+scene.fog=new THREE.Fog(0x1a1d23,15,40);
+
+const camera=new THREE.PerspectiveCamera(50,panel3d.clientWidth/panel3d.clientHeight,0.1,100);
+camera.position.set(8,6,8);camera.lookAt(0,0,0);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(panel3d.clientWidth,panel3d.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+panel3d.appendChild(renderer.domElement);
+
+const labelRenderer=new CSS2DRenderer();
+labelRenderer.setSize(panel3d.clientWidth,panel3d.clientHeight);
+labelRenderer.domElement.style.position='absolute';labelRenderer.domElement.style.top='0';
+labelRenderer.domElement.style.pointerEvents='none';
+panel3d.appendChild(labelRenderer.domElement);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,0.5,0);controls.update();
+controls.enableDamping=true;
+
+// 灯光
+scene.add(new THREE.AmbientLight(0x404060,1.2));
+const sun=new THREE.DirectionalLight(0xffffff,2.5);
+sun.position.set(10,15,5);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+scene.add(sun);
+
+// 地面网格
+const grid=new THREE.GridHelper(10,20,0x333842,0x252830);
+scene.add(grid);
+
+// 地面参考平面（图纸纹理）
+let groundPlane=null;
+function updateGroundTexture(){
+  if(groundPlane){scene.remove(groundPlane);groundPlane.geometry.dispose();groundPlane.material.dispose()}
+  if(!state.drawingImg)return;
+  const tex=new THREE.CanvasTexture(state.drawingImg);
+  const w=10,h=10*(state.drawingH/state.drawingW);
+  const geo=new THREE.PlaneGeometry(w,h);
+  const mat=new THREE.MeshStandardMaterial({map:tex,transparent:true,opacity:0.5,side:THREE.DoubleSide});
+  groundPlane=new THREE.Mesh(geo,mat);
+  groundPlane.rotation.x=-Math.PI/2;groundPlane.position.y=0.01;
+  scene.add(groundPlane);
+}
+
+// 占位符 3D 对象集合
+const phObjects=new Map();
+
+function add3DPlaceholder(ph){
+  const g=new THREE.SphereGeometry(0.2,16,16);
+  const m=new THREE.MeshStandardMaterial({color:0x4d78cc,transparent:true,opacity:0.5,emissive:0x4d78cc,emissiveIntensity:0.3});
+  const mesh=new THREE.Mesh(g,m);
+  mesh.position.set(ph.x3d,0.2,ph.z3d);
+  mesh.userData={phId:ph.id};
+  scene.add(mesh);
+  // 标签
+  const div=document.createElement('div');div.textContent=ph.label;div.style.cssText='color:#4d78cc;font-size:11px;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:4px';
+  const label=new CSS2DObject(div);label.position.set(ph.x3d,0.5,ph.z3d);mesh.add(label);
+  phObjects.set(ph.id,mesh);
+}
+
+function remove3DPlaceholder(phId){
+  const obj=phObjects.get(phId);if(!obj)return;
+  scene.remove(obj);phObjects.delete(phId);
+}
+
+function rebuild3D(){
+  for(const[id]of phObjects)remove3DPlaceholder(id);
+  updateGroundTexture();
+  for(const ph of state.placeholders)add3DPlaceholder(ph);
+}
+
+// 产品模型生成
+function createProductGeo(type){
+  const g=new THREE.Group();
+  switch(type){
+    case 'valve':
+      const body=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,1,32),new THREE.MeshStandardMaterial({color:0x4d78cc,metalness:0.8,roughness:0.3}));
+      body.rotation.x=Math.PI/2;g.add(body);
+      const handle=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.06,8,16),new THREE.MeshStandardMaterial({color:0xe06c75,metalness:0.5,roughness:0.5}));
+      handle.position.y=0.6;g.add(handle);break;
+    case 'flange':
+      const disc=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.15,32),new THREE.MeshStandardMaterial({color:0x61afef,metalness:0.7,roughness:0.3}));
+      g.add(disc);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.04,8,24),new THREE.MeshStandardMaterial({color:0x98c379,metalness:0.6,roughness:0.4}));
+      ring.position.y=0.1;g.add(ring);break;
+    case 'elbow':
+      const curve=new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,0,0),new THREE.Vector3(0.5,0.3,0),new THREE.Vector3(0.7,0.7,0)),20,0.15,8,false);
+      const pipe=new THREE.Mesh(curve,new THREE.MeshStandardMaterial({color:0xe5c07b,metalness:0.6,roughness:0.4}));
+      g.add(pipe);break;
+    case 'connector':
+      const c1=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,0.4,16),new THREE.MeshStandardMaterial({color:0x98c379,metalness:0.7,roughness:0.3}));
+      g.add(c1);
+      const c2=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.25,0.4,16),new THREE.MeshStandardMaterial({color:0x98c379,metalness:0.7,roughness:0.3}));
+      c2.position.y=0.4;g.add(c2);break;
+    case 'tee':
+      const t1=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.8,16),new THREE.MeshStandardMaterial({color:0x61afef,metalness:0.6,roughness:0.4}));
+      g.add(t1);
+      const t2=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.5,16),new THREE.MeshStandardMaterial({color:0x61afef,metalness:0.6,roughness:0.4}));
+      t2.rotation.z=Math.PI/2;t2.position.y=0.4;g.add(t2);break;
+  }
+  return g;
+}
+
+function loadLibraryProducts(){
+  state.products=[
+    {id:'valve',name:'球阀',icon:'🔵',type:'valve'},
+    {id:'flange',name:'法兰盘',icon:'🟢',type:'flange'},
+    {id:'elbow',name:'弯头',icon:'🟡',type:'elbow'},
+    {id:'connector',name:'变径接头',icon:'🟤',type:'connector'},
+    {id:'tee',name:'三通',icon:'🔷',type:'tee'},
+  ];
+  renderLibrary();
+}
+
+function renderLibrary(){
+  libItems.innerHTML='';
+  for(const p of state.products){
+    const d=document.createElement('div');d.className='lib-item'+(state.selectedProduct===p.id?' selected':'');
+    d.innerHTML=`<div class="preview">${p.icon}</div><div class="name">${p.name}</div>`;
+    d.addEventListener('click',()=>{state.selectedProduct=p.id;renderLibrary();statusBar.textContent=`已选择: ${p.name} · 点击场景中占位符放置`});
+    libItems.appendChild(d);
+  }
+}
+loadLibraryProducts();
+
+// 点击 3D 占位符 → 放置产品（通过 raycaster）
+const raycaster=new THREE.Raycaster();
+panel3d.addEventListener('click',e=>{
+  if(!state.selectedProduct||e.target!==renderer.domElement)return;
+  const r=panel3d.getBoundingClientRect();
+  const mouse=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(scene.children,true);
+  for(const hit of hits){
+    let obj=hit.object;
+    while(obj){
+      if(obj.userData?.phId){
+        const phId=obj.userData.phId;
+        const ph=state.placeholders.find(p=>p.id===phId);
+        if(ph&&!ph.product){
+          placeProduct(ph);return;
+        }else if(ph?.product){
+          removeProduct(ph);return;
+        }
+      }
+      obj=obj.parent;
+    }
+  }
+});
+
+function placeProduct(ph){
+  const prod=state.products.find(p=>p.id===state.selectedProduct);
+  if(!prod)return;
+  remove3DPlaceholder(ph.id);
+  const model=createProductGeo(prod.type);
+  model.position.set(ph.x3d,0.3,ph.z3d);
+  model.userData={phId:ph.id,productId:prod.id};
+  scene.add(model);
+  const div=document.createElement('div');div.textContent=ph.label;div.style.cssText='color:#61afef;font-size:11px;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:4px';
+  const label=new CSS2DObject(div);label.position.set(0,0.8,0);model.add(label);
+  ph.product=prod.id;ph.modelObj=model;
+  phObjects.set(ph.id,model);
+  state.selectedProduct=null;renderLibrary();
+  render2D();statusBar.textContent=`已装配: ${prod.name} → ${ph.label}`;
+}
+
+function removeProduct(ph){
+  const obj=phObjects.get(ph.id);if(obj)scene.remove(obj);
+  phObjects.delete(ph.id);ph.product=null;ph.modelObj=null;
+  add3DPlaceholder(ph);render2D();statusBar.textContent=`已移除: ${ph.label} 的产品`;
+}
+
+// ===== 保存/导出 =====
+function exportJSON(){
+  const data={placeholders:state.placeholders.map(p=>({id:p.id,x:p.x,y:p.y,x3d:p.x3d,z3d:p.z3d,label:p.label,product:p.product})),drawingW:state.drawingW,drawingH:state.drawingH};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='装配方案.json';a.click();
+  statusBar.textContent='方案已导出';
+}
+window.exportJSON=exportJSON;
+
+$('importInput').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const data=JSON.parse(await f.text());
+  state.placeholders=[];rebuild3D();
+  state.drawingW=data.drawingW;state.drawingH=data.drawingH;state.nextId=Math.max(...data.placeholders.map(p=>p.id),0)+1;
+  for(const p of data.placeholders){
+    const ph={id:p.id,x:p.x,y:p.y,x3d:p.x3d,z3d:p.z3d,label:p.label,product:null,modelObj:null};
+    state.placeholders.push(ph);add3DPlaceholder(ph);
+    if(p.product){state.selectedProduct=p.product;placeProduct(ph)}
+  }
+  state.selectedProduct=null;renderLibrary();render2D();
+  statusBar.textContent='方案已导入';
+});
+
+function screenshot(){
+  renderer.render(scene,camera);
+  renderer.domElement.toBlob(blob=>{
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='三维装配截图.png';a.click();
+  });
+  statusBar.textContent='截图已保存';
+}
+window.screenshot=screenshot;
+
+function toggleHelp(){$('helpSection').style.display=$('helpSection').style.display==='block'?'none':'block'}
+window.toggleHelp=toggleHelp;
+
+// ===== 渲染循环 =====
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene,camera);
+  labelRenderer.render(scene,camera);
+}
+animate();
+
+// 响应式
+new ResizeObserver(()=>{
+  renderer.setSize(panel3d.clientWidth,panel3d.clientHeight);
+  labelRenderer.setSize(panel3d.clientWidth,panel3d.clientHeight);
+  camera.aspect=panel3d.clientWidth/panel3d.clientHeight;camera.updateProjectionMatrix();
+}).observe(panel3d);
+
+// 初始化
+addDemoDrawing();
+updateGroundTexture();
+statusBar.textContent='就绪 · 点击图纸添加占位符';
+</script>
+</body>
+</html>
