@@ -723,15 +723,54 @@ addDemoDrawing();
 updateGroundTexture();
 statusBar.textContent='就绪 · 点击图纸添加占位符';
 </script>
-<script defer type="importmap">
-{
-  "imports": {
-    "three": "https://esm.sh/three@0.160.0",
-    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+
+<script>
+// 后台加载CDN资源，不阻塞页面渲染
+(function(){
+  const CDNS=['esm.sh','unpkg.com','cdn.jsdelivr.net'];
+  let cdnOk=null;
+  
+  // 动态创建importmap
+  function setImportMap(cdn){
+    const map=document.createElement('script');
+    map.type='importmap';
+    map.textContent=JSON.stringify({imports:{'three':'https://'+cdn+'/three@0.160.0/build/three.module.js','three/addons/':'https://'+cdn+'/three@0.160.0/examples/jsm/'}});
+    document.head.appendChild(map);
   }
-}
+  
+  // 测试CDN
+  async function testCDN(url){
+    try{
+      const r=await Promise.race([fetch(url,{mode:'no-cors'}),new Promise((_,rj)=>setTimeout(rj,3000))]);
+      return true;
+    }catch(e){return false}
+  }
+  
+  // 加载脚本
+  function loadScript(src){
+    return new Promise((res,rej)=>{
+      const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.body.appendChild(s);
+    });
+  }
+  
+  (async function boot(){
+    // 找可用的CDN
+    for(const c of CDNS){
+      if(await testCDN('https://'+c+'/three@0.160.0/package.json')){
+        cdnOk=c;break;
+      }
+    }
+    if(!cdnOk){cdnOk='esm.sh'} // fallback
+    setImportMap(cdnOk);
+    // 加载 pdf.js 和 jszip
+    await Promise.allSettled([
+      loadScript('https://'+cdnOk+'/pdfjs-dist@3.11.174/build/pdf.min.js'),
+      loadScript('https://'+cdnOk+'/jszip@3.10.1/dist/jszip.min.js')
+    ]);
+    document.getElementById('cdnLoader')?.remove();
+  })();
+})();
 </script>
-<script defer src="https://esm.sh/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script defer src="https://esm.sh/jszip@3.10.1/dist/jszip.min.js"></script>
+<div id="cdnLoader" style="position:fixed;bottom:8px;right:8px;background:rgba(0,0,0,.8);color:#ff0;padding:4px 10px;border-radius:6px;font-size:11px;z-index:999">加载CDN资源中…</div>
 </body>
 </html>
