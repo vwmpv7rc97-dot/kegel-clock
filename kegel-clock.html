@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>提肛时钟</title>
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -540,7 +543,7 @@ function init() {
 // ===== Service Worker =====
 if ('serviceWorker' in navigator) {
   const swBlob = new Blob([`
-    const C='kegel-v4';
+    const C='kegel-v5';
     self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll([self.location.href])).catch(()=>{}));self.skipWaiting();});
     self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim();});
     self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});
