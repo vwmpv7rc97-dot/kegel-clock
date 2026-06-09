@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>批量抠图 · 液态玻璃工坊</title>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="批量抠图">
+<meta name="theme-color" content="#0f0f1a">
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+  :root{
+    --bg:#0f0f1a;
+    --glass:rgba(255,255,255,0.06);
+    --glass-border:rgba(255,255,255,0.08);
+    --text:#e8e8ed;
+    --text-secondary:#9494a8;
+    --accent:#5b9cf5;
+    --accent-glow:rgba(91,156,245,0.3);
+    --success:#34d399;
+    --error:#f87171;
+    --warning:#fbbf24;
+    --radius:20px;
+    --radius-sm:12px;
+    --safe-b:env(safe-area-inset-bottom,0px);
+    --safe-t:env(safe-area-inset-top,0px);
+  }
+
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);
+    background-image:
+      radial-gradient(ellipse at 50% 0%,rgba(91,156,245,0.06) 0%,transparent 60%),
+      radial-gradient(ellipse at 80% 80%,rgba(139,92,246,0.04) 0%,transparent 50%);
+    color:var(--text);
+    min-height:100vh;min-height:100dvh;
+    -webkit-tap-highlight-color:transparent;
+    padding:20px;padding-top:calc(20px + var(--safe-t));padding-bottom:calc(20px + var(--safe-b));
+  }
+
+  .container{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+  /* Header */
+  header{text-align:center;padding:8px 0}
+  header h1{font-size:clamp(22px,5vw,34px);font-weight:700;letter-spacing:.04em;
+    background:linear-gradient(135deg,#e8e8ed 0%,#5b9cf5 50%,#a78bfa 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  header p{font-size:13px;color:var(--text-secondary);margin-top:6px;letter-spacing:.03em}
+
+  /* Upload Zone */
+  .upload-zone{
+    background:var(--glass);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);
+    border:2px dashed var(--glass-border);border-radius:var(--radius);padding:40px 20px;text-align:center;cursor:pointer;
+    transition:all .3s
+  }
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(255,255,255,0.08)}
+  .upload-zone .icon{font-size:36px;margin-bottom:10px}
+  .upload-zone .label{font-size:15px;font-weight:600;letter-spacing:.04em}
+  .upload-zone .hint{font-size:12px;color:var(--text-secondary);margin-top:5px;letter-spacing:.03em;line-height:1.5}
+  .upload-zone input{display:none}
+
+  /* Model loading bar */
+  .model-bar-wrap{
+    background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:12px 16px;display:flex;align-items:center;gap:10px
+  }
+  .model-bar-wrap.done{display:none}
+  .model-bar-wrap .mlabel{font-size:12px;color:var(--text-secondary);letter-spacing:.03em;white-space:nowrap}
+  .model-bar-wrap .mbar{flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+  .model-bar-wrap .mbar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0%}
+  .model-bar-wrap .mpct{font-size:11px;color:var(--accent);letter-spacing:.03em;white-space:nowrap;min-width:36px;text-align:right}
+
+  /* Toolbar */
+  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .toolbar .status{font-size:12px;color:var(--text-secondary);letter-spacing:.03em;display:flex;align-items:center;gap:6px}
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--success);flex-shrink:0}
+  .status-dot.busy{background:var(--warning);animation:pulse-dot 1.5s ease-in-out infinite}
+  @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .btn{
+    padding:10px 18px;border-radius:var(--radius-sm);border:none;font-size:13px;font-weight:590;cursor:pointer;
+    letter-spacing:.04em;font-family:inherit;transition:all .2s;white-space:nowrap;-webkit-tap-highlight-color:transparent
+  }
+  .btn-glass{background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:var(--text);border:1px solid var(--glass-border)}
+  .btn-glass:hover{background:rgba(255,255,255,0.08);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+  .btn-glass:active{transform:scale(.97)}
+  .btn-glass:disabled{opacity:.35;pointer-events:none}
+  .btn-accent{background:var(--accent);color:#fff;box-shadow:0 4px 20px var(--accent-glow)}
+  .btn-accent:hover{transform:translateY(-1px);box-shadow:0 8px 30px var(--accent-glow)}
+  .btn-accent:active{transform:scale(.97)}
+  .btn-accent:disabled{opacity:.35;pointer-events:none;box-shadow:none}
+  .btn-danger{background:rgba(248,113,113,0.15);color:var(--error);border:1px solid rgba(248,113,113,0.2)}
+  .btn-danger:hover{background:rgba(248,113,113,0.25);transform:translateY(-1px)}
+  .btn-danger:active{transform:scale(.97)}
+  .btn-danger:disabled{opacity:.35;pointer-events:none}
+  .btn-sm{padding:6px 14px;font-size:12px;border-radius:10px}
+
+  /* Card Grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+  .grid:empty{display:none}
+  .grid:empty+.empty-state{display:flex}
+
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;color:var(--text-secondary);text-align:center}
+  .empty-state .icon{font-size:44px;margin-bottom:10px;opacity:.5}
+  .empty-state p{font-size:13px;line-height:1.6}
+
+  /* Card */
+  .card{
+    background:var(--glass);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%);
+    border:1px solid var(--glass-border);border-radius:var(--radius);padding:14px;
+    transition:all .3s;display:flex;flex-direction:column;gap:10px
+  }
+  .card.done{border-color:rgba(52,211,153,.15)}
+  .card.error{border-color:rgba(248,113,113,.2)}
+
+  .card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .card-name{font-size:12px;font-weight:500;color:var(--text);letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .card-badge{font-size:10px;padding:2px 8px;border-radius:20px;letter-spacing:.04em;flex-shrink:0}
+  .badge-pending{background:rgba(148,148,168,.12);color:var(--text-secondary)}
+  .badge-downloading{background:rgba(251,191,36,.1);color:var(--warning)}
+  .badge-processing{background:rgba(91,156,245,.1);color:var(--accent)}
+  .badge-done{background:rgba(52,211,153,.1);color:var(--success)}
+  .badge-error{background:rgba(248,113,113,.1);color:var(--error)}
+
+  .card-compare{display:flex;gap:6px}
+  .card-img-wrap{flex:1;aspect-ratio:1;border-radius:var(--radius-sm);overflow:hidden;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;position:relative}
+  .card-img-wrap img{width:100%;height:100%;object-fit:contain;position:absolute;inset:0}
+  .card-img-wrap .placeholder{font-size:11px;color:var(--text-secondary);text-align:center;padding:6px}
+  .card-img-wrap.final{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='10' height='10' fill='%23ffffff10'/%3E%3Crect x='10' y='10' width='10' height='10' fill='%23ffffff10'/%3E%3C/svg%3E")}
+
+  .card-progress{height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+  .card-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0%}
+  .card-progress-bar.done{background:var(--success)}
+  .card-progress-bar.error{background:var(--error)}
+
+  .card-status-text{font-size:10px;color:var(--text-secondary);letter-spacing:.03em}
+  .card-actions{display:flex;gap:6px;justify-content:flex-end}
+  .card-error-msg{font-size:10px;color:var(--error);letter-spacing:.03em;line-height:1.4}
+
+  /* ===== 响应式 ===== */
+  /* 手机 */
+  @media(max-width:500px){
+    body{padding:10px;padding-top:calc(10px + var(--safe-t));padding-bottom:calc(10px + var(--safe-b))}
+    .container{gap:14px}
+    .grid{grid-template-columns:1fr}
+    .upload-zone{padding:28px 14px}
+    .upload-zone .label{font-size:14px}
+    .toolbar{flex-direction:column;align-items:stretch}
+    .toolbar .actions{display:flex;gap:8px}
+    .toolbar .actions .btn{flex:1;text-align:center}
+    .card-compare{gap:4px}
+    .model-bar-wrap{flex-wrap:wrap;gap:6px}
+  }
+
+  /* 平板 */
+  @media(min-width:501px) and (max-width:900px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+    .container{gap:18px}
+  }
+
+  /* 桌面 */
+  @media(min-width:901px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(370px,1fr))}
+    .container{gap:22px}
+    .upload-zone{padding:48px 24px}
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>批量抠图 · 液态玻璃工坊</h1>
+    <p>完全本地处理 · 不上传任何图片到服务器</p>
+  </header>
+
+  <div class="upload-zone" id="uploadZone">
+    <div class="icon">🖼️</div>
+    <div class="label">拖拽图片/ZIP · 点击选择 · Ctrl+V 粘贴</div>
+    <div class="hint">支持 JPG / PNG / WebP · 多选 · 剪贴板粘贴 · ZIP 压缩包</div>
+    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,.zip" multiple>
+  </div>
+
+  <!-- 模型预加载进度条 -->
+  <div class="model-bar-wrap" id="modelBar">
+    <span class="mlabel">🧠 AI 模型预加载</span>
+    <div class="mbar"><div class="mbar-fill" id="modelFill"></div></div>
+    <span class="mpct" id="modelPct">0%</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">就绪</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-accent" id="btnZip" disabled onclick="window._downloadAllZip()">📦 下载 ZIP</button>
+      <button class="btn btn-danger" id="btnClear" disabled onclick="window._clearAll()">🗑 清空</button>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty-state" id="emptyState">
+    <div class="icon">📂</div>
+    <p>拖拽图片或 ZIP 到上方区域<br>或按 Ctrl+V 粘贴剪贴板中的图片</p>
+  </div>
+</div>
+
+<script>
+// ===== 全局 =====
+const jobs = new Map();
+let jobCounter = 0;
+let activeCount = 0;
+let removeBackgroundFn = null;
+let engineReady = false;
+
+// ===== DOM =====
+const $ = id => document.getElementById(id);
+const uploadZone = $('uploadZone');
+const fileInput = $('fileInput');
+const grid = $('grid');
+const emptyState = $('emptyState');
+const statusDot = $('statusDot');
+const statusText = $('statusText');
+const btnZip = $('btnZip');
+const btnClear = $('btnClear');
+const modelBar = $('modelBar');
+const modelFill = $('modelFill');
+const modelPct = $('modelPct');
+
+// ===== 多 CDN 轮流尝试 =====
+const CDN_LIST = [
+  ['esm.sh',   'https://esm.sh/@imgly/background-removal@1.6.0'],
+  ['jsdelivr', 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.6.0/dist/index.mjs'],
+  ['unpkg',    'https://unpkg.com/@imgly/background-removal@1.6.0/dist/index.mjs'],
+];
+
+async function loadEngine() {
+  for (const [name, url] of CDN_LIST) {
+    statusText.textContent = `连接 ${name}…`;
+    try {
+      const mod = await Promise.race([
+        import(url),
+        new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 25000))
+      ]);
+      removeBackgroundFn = mod.removeBackground;
+      console.log(`✅ 引擎加载 via ${name}`);
+      return;
+    } catch (e) {
+      console.warn(`❌ ${name}:`, e.message);
+    }
+  }
+  throw new Error('所有 CDN 均无法连接，请检查网络后刷新页面');
+}
+
+// ===== 预加载模型（用极小 PNG 触发下载） =====
+const TINY_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+async function preloadModel() {
+  if (!removeBackgroundFn) return;
+  modelBar.style.display = 'flex';
+
+  try {
+    // 将 base64 转成 Blob
+    const resp = await fetch(TINY_PNG);
+    const blob = await resp.blob();
+
+    await removeBackgroundFn(blob, {
+      output: { format: 'image/png' },
+      progress: (key, current, total) => {
+        if ((key === 'fetch:model' || key.startsWith('download')) && total > 0) {
+          const pct = Math.min(99, Math.round((current / total) * 100));
+          modelFill.style.width = pct + '%';
+          modelPct.textContent = pct + '%';
+          statusText.textContent = `下载 AI 模型 ${pct}%`;
+        }
+      },
+    });
+
+    modelFill.style.width = '100%';
+    modelPct.textContent = '✓';
+    statusText.textContent = '模型就绪 · 等待上传';
+    statusDot.className = 'status-dot';
+  } catch (e) {
+    console.warn('预加载失败，将在首次抠图时下载:', e.message);
+    statusText.textContent = '就绪 · 模型将在使用时下载';
+    statusDot.className = 'status-dot';
+  }
+
+  // 延迟隐藏进度条
+  setTimeout(() => { modelBar.classList.add('done'); }, 1500);
+  engineReady = true;
+}
+
+// ===== 启动流程 =====
+(async function boot() {
+  try {
+    statusDot.className = 'status-dot busy';
+    statusText.textContent = '加载抠图引擎…';
+    await loadEngine();
+    statusText.textContent = '引擎就绪 · 预加载模型中…';
+    await preloadModel();
+  } catch (e) {
+    statusText.textContent = '❌ ' + e.message;
+    statusDot.className = 'status-dot';
+    statusDot.style.background = 'var(--error)';
+  }
+})();
+
+// ===== 上传 =====
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+
+document.addEventListener('paste', e => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  const files = [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const f = item.getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  if (files.length) { e.preventDefault(); handleFiles(files); }
+});
+
+async function handleFiles(fileList) {
+  if (!removeBackgroundFn) { alert('抠图引擎还在加载，请稍候…'); return; }
+  if (!engineReady) engineReady = true; // 预加载失败时直接进入使用
+
+  const imageFiles = [];
+  for (const f of Array.from(fileList)) {
+    if (f.name.toLowerCase().endsWith('.zip') || f.type === 'application/zip' || f.type === 'application/x-zip-compressed') {
+      try {
+        const zip = await JSZip.loadAsync(f);
+        for (const [path, entry] of Object.entries(zip.files)) {
+          if (entry.dir) continue;
+          const ext = path.split('.').pop().toLowerCase();
+          if (!['jpg','jpeg','png','webp'].includes(ext)) continue;
+          const blob = await entry.async('blob');
+          const fname = path.split('/').pop() || path;
+          const mime = ext === 'jpg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : `image/${ext}`;
+          imageFiles.push(new File([blob], fname, { type: mime }));
+        }
+      } catch (e) { alert(`ZIP 解压失败：${e.message}`); }
+      continue;
+    }
+    if (f.type.startsWith('image/')) imageFiles.push(f);
+  }
+
+  if (!imageFiles.length) return;
+  for (const file of imageFiles) {
+    const id = ++jobCounter;
+    const blobUrl = URL.createObjectURL(file);
+    jobs.set(id, { file, blobUrl, status:'pending', error:null, resultBlob:null, resultUrl:null });
+    createCard(id, file.name, blobUrl);
+    processImage(id);
+  }
+  updateToolbar();
+  emptyState.style.display = 'none';
+  fileInput.value = '';
+}
+
+// ===== 卡片 =====
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function createCard(id, name, blobUrl) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = `card-${id}`;
+  card.innerHTML = `
+    <div class="card-top">
+      <span class="card-name" title="${esc(name)}">${esc(name)}</span>
+      <span class="card-badge badge-pending" id="badge-${id}">排队</span>
+    </div>
+    <div class="card-compare">
+      <div class="card-img-wrap"><img src="${blobUrl}"></div>
+      <div class="card-img-wrap final" id="result-${id}"><span class="placeholder">等待</span></div>
+    </div>
+    <div class="card-progress"><div class="card-progress-bar" id="progress-${id}"></div></div>
+    <div class="card-status-text" id="statusText-${id}">排队中…</div>
+    <div class="card-actions" id="actions-${id}"></div>
+    <div class="card-error-msg" id="error-${id}" style="display:none"></div>
+  `;
+  grid.appendChild(card);
+}
+
+function badge(id, cls, text) {
+  const b = $(`badge-${id}`);
+  if (b) { b.className = 'card-badge ' + cls; b.textContent = text; }
+}
+
+// ===== 抠图 =====
+async function processImage(id) {
+  const job = jobs.get(id);
+  if (!job || !removeBackgroundFn) return;
+  job.status = 'processing';
+  activeCount++;
+  updateStatus();
+  updateToolbar();
+
+  const progressBar = $(`progress-${id}`);
+  const statusEl = $(`statusText-${id}`);
+
+  try {
+    statusEl.textContent = '下载模型中…';
+    badge(id, 'badge-downloading', '下载');
+
+    const config = {
+      output: { format: 'image/png' },
+      progress: (key, current, total) => {
+        if ((key === 'fetch:model' || key.startsWith('download')) && total > 0) {
+          const pct = Math.round((current / total) * 100);
+          progressBar.style.width = Math.max(3, pct * 0.3) + '%';
+          statusEl.textContent = `下载模型 ${pct}%`;
+          badge(id, 'badge-downloading', `${pct}%`);
+        }
+      },
+    };
+
+    const resultBlob = await removeBackgroundFn(job.blobUrl, config);
+    badge(id, 'badge-processing', '处理');
+    progressBar.style.width = '85%';
+    statusEl.textContent = '生成中…';
+
+    const resultUrl = URL.createObjectURL(resultBlob);
+    job.resultBlob = resultBlob;
+    job.resultUrl = resultUrl;
+    job.status = 'done';
+
+    $(`result-${id}`).innerHTML = `<img src="${resultUrl}" alt="结果">`;
+    badge(id, 'badge-done', '✓');
+    progressBar.classList.add('done');
+    progressBar.style.width = '100%';
+    statusEl.textContent = '完成';
+    $(`actions-${id}`).innerHTML =
+      `<button class="btn btn-glass btn-sm" onclick="window._download(${id})">💾 下载</button>`;
+
+  } catch (e) {
+    job.status = 'error';
+    job.error = e.message || '未知';
+    badge(id, 'badge-error', '失败');
+    progressBar.classList.add('error');
+    progressBar.style.width = '100%';
+    statusEl.textContent = '失败';
+    $(`result-${id}`).innerHTML = '<span class="placeholder">❌</span>';
+    $(`error-${id}`).textContent = job.error;
+    $(`error-${id}`).style.display = 'block';
+  }
+
+  activeCount--;
+  updateStatus();
+  updateToolbar();
+}
+
+function updateStatus() {
+  if (!removeBackgroundFn) return;
+  if (activeCount > 0) {
+    statusDot.className = 'status-dot busy';
+    statusText.textContent = `处理中 · ${activeCount} 张`;
+  } else {
+    statusDot.className = 'status-dot';
+    statusText.textContent = '就绪 · 等待上传';
+  }
+}
+
+function updateToolbar() {
+  const all = Array.from(jobs.values());
+  const done = all.filter(j => j.status === 'done');
+  btnClear.disabled = all.length === 0;
+  btnZip.disabled = done.length === 0;
+  btnZip.textContent = `📦 下载 ZIP${done.length ? ` (${done.length})` : ''}`;
+  if (!all.length) emptyState.style.display = 'flex';
+}
+
+window._download = function(id) {
+  const job = jobs.get(id);
+  if (!job?.resultBlob) return;
+  saveAs(job.resultBlob, job.file.name.replace(/\.[^.]+$/, '') + '（扣图版）.png');
+};
+
+window._downloadAllZip = async function() {
+  const done = Array.from(jobs.values()).filter(j => j.status === 'done' && j.resultBlob);
+  if (!done.length) return;
+  const zip = new JSZip();
+  const seen = new Map();
+  for (const job of done) {
+    let name = job.file.name.replace(/\.[^.]+$/, '') + '（扣图版）.png';
+    if (seen.has(name)) {
+      const base = name.replace('（扣图版）.png', '');
+      let n = 1;
+      while (seen.has(`${base}（${n}）（扣图版）.png`)) n++;
+      name = `${base}（${n}）（扣图版）.png`;
+    }
+    seen.set(name, true);
+    zip.file(name, job.resultBlob);
+  }
+  saveAs(await zip.generateAsync({ type: 'blob' }), '抠图结果.zip');
+};
+
+window._clearAll = function() {
+  for (const [, job] of jobs) {
+    if (job.blobUrl) URL.revokeObjectURL(job.blobUrl);
+    if (job.resultUrl) URL.revokeObjectURL(job.resultUrl);
+  }
+  jobs.clear();
+  grid.innerHTML = '';
+  emptyState.style.display = 'flex';
+  updateToolbar();
+};
+</script>
+</body>
+</html>
