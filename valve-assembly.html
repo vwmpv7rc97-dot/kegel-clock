@@ -90,6 +90,8 @@ input[type=file]{display:none}
   <!-- 产品库 -->
   <div class="panel-lib" id="panelLib">
     <h3>📦 产品库</h3>
+    <button class="btn btn-accent" style="width:100%;margin-bottom:10px;font-size:13px;padding:10px;font-weight:700" onclick="document.getElementById('gltfInput').click()">⬆ 上传 3D 模型</button>
+    <input type="file" id="gltfInput" accept=".gltf,.glb" multiple>
     <div id="libItems"></div>
   </div>
 </div>
@@ -135,6 +137,7 @@ convert_to_gltf('./cad_models/', './models/')</code></pre>
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ===== 全局状态 =====
 const state = {
@@ -387,6 +390,54 @@ function loadLibraryProducts(){
   renderLibrary();
 }
 
+$('gltfInput').addEventListener('change',async e=>{
+  const files=e.target.files;
+  if(!files.length)return;
+  const loader=new GLTFLoader();
+  for(const f of files){
+    statusBar.textContent=`加载模型: ${f.name}…`;
+    try{
+      const url=URL.createObjectURL(f);
+      const gltf=await loader.loadAsync(url);
+      URL.revokeObjectURL(url);
+      const id='gltf_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+      state.products.push({id,name:f.name.replace(/\.(gltf|glb)$/i,''),icon:'📦',type:'gltf',gltf});
+    }catch(e){console.error(f.name,e)}
+  }
+  renderLibrary();statusBar.textContent=`已加载 ${files.length} 个模型`;
+});
+
+function createProductGeo(type){
+  const g=new THREE.Group();
+  switch(type){
+    case 'valve':
+      const body=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,1,32),new THREE.MeshStandardMaterial({color:0x4d78cc,metalness:0.8,roughness:0.3}));
+      body.rotation.x=Math.PI/2;g.add(body);
+      const handle=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.06,8,16),new THREE.MeshStandardMaterial({color:0xe06c75,metalness:0.5,roughness:0.5}));
+      handle.position.y=0.6;g.add(handle);break;
+    case 'flange':
+      const disc=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.15,32),new THREE.MeshStandardMaterial({color:0x61afef,metalness:0.7,roughness:0.3}));
+      g.add(disc);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.04,8,24),new THREE.MeshStandardMaterial({color:0x98c379,metalness:0.6,roughness:0.4}));
+      ring.position.y=0.1;g.add(ring);break;
+    case 'elbow':
+      const curve=new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,0,0),new THREE.Vector3(0.5,0.3,0),new THREE.Vector3(0.7,0.7,0)),20,0.15,8,false);
+      const pipe=new THREE.Mesh(curve,new THREE.MeshStandardMaterial({color:0xe5c07b,metalness:0.6,roughness:0.4}));
+      g.add(pipe);break;
+    case 'connector':
+      const c1=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,0.4,16),new THREE.MeshStandardMaterial({color:0x98c379,metalness:0.7,roughness:0.3}));
+      g.add(c1);
+      const c2=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.25,0.4,16),new THREE.MeshStandardMaterial({color:0x98c379,metalness:0.7,roughness:0.3}));
+      c2.position.y=0.4;g.add(c2);break;
+    case 'tee':
+      const t1=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.8,16),new THREE.MeshStandardMaterial({color:0x61afef,metalness:0.6,roughness:0.4}));
+      g.add(t1);
+      const t2=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.5,16),new THREE.MeshStandardMaterial({color:0x61afef,metalness:0.6,roughness:0.4}));
+      t2.rotation.z=Math.PI/2;t2.position.y=0.4;g.add(t2);break;
+  }
+  return g;
+}
+
 function renderLibrary(){
   libItems.innerHTML='';
   for(const p of state.products){
@@ -427,7 +478,13 @@ function placeProduct(ph){
   const prod=state.products.find(p=>p.id===state.selectedProduct);
   if(!prod)return;
   remove3DPlaceholder(ph.id);
-  const model=createProductGeo(prod.type);
+  let model;
+  if(prod.type==='gltf'&&prod.gltf){model=prod.gltf.scene.clone(true)}
+  else model=createProductGeo(prod.type);
+  // 自动缩放到合适大小
+  const box=new THREE.Box3().setFromObject(model);
+  const size=box.getSize(new THREE.Vector3());const maxDim=Math.max(size.x,size.y,size.z);
+  if(maxDim>0){const s=0.8/maxDim;model.scale.set(s,s,s)}
   model.position.set(ph.x3d,0.3,ph.z3d);
   model.userData={phId:ph.id,productId:prod.id};
   scene.add(model);
