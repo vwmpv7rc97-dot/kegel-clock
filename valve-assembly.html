@@ -67,6 +67,7 @@ input[type=file]{display:none}
     <button class="btn btn-sm" onclick="document.getElementById('importInput').click()">📥 导入方案</button>
     <input type="file" id="importInput" accept=".json">
     <button class="btn btn-sm" onclick="screenshot()">📸 截图</button>
+    <button class="btn btn-sm" onclick="detectPipes()">🔧 管道3D化</button>
     <button class="btn btn-sm" onclick="clearAllPlaceholders()">🗑 清除全部</button>
     <button class="btn btn-sm" onclick="toggleHelp()">❓ 帮助</button>
     <span id="statusBar" style="font-size:11px;color:var(--text-secondary);margin-left:8px">就绪</span>
@@ -75,9 +76,12 @@ input[type=file]{display:none}
 
 <div class="main" id="mainContainer">
   <!-- 2D 图纸面板 -->
-  <div class="panel panel-2d" id="panel2d">
-    <canvas id="drawingCanvas"></canvas>
-    <div class="placeholder-list" id="phList"></div>
+  <div class="panel panel-2d" id="panel2d" style="flex-direction:column">
+    <div style="flex:1;position:relative;width:100%;display:flex;align-items:center;justify-content:center">
+      <canvas id="drawingCanvas"></canvas>
+      <div class="placeholder-list" id="phList"></div>
+    </div>
+    <div id="thumbStrip" style="display:flex;flex-wrap:wrap;padding:4px;gap:2px;background:rgba(0,0,0,.3);min-height:48px;align-items:center;overflow-x:auto"></div>
   </div>
 
   <div class="resize-handle" id="resizeHandle"></div>
@@ -153,6 +157,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const state = {
   drawingImg: null,
   drawingW: 800, drawingH: 600,
+  drawings: [],         // 所有已上传图纸 [{img, w, h, name}]
+  currentDrawing: 0,    // 当前显示第几张
   placeholders: [],     // {id, x, y, x3d, z3d, label, product:null}
   selectedProduct: null,
   nextId: 1,
@@ -208,22 +214,44 @@ async function handleDrawingFiles(files){
     imageFiles.push(f);
   }
   if(!imageFiles.length)return;
-  // 只加载第一张到主视图，其余暂存
   statusBar.textContent=`加载 ${imageFiles.length} 张图纸…`;
-  const first=imageFiles[0];
-  if(first.type==='application/pdf'||first.name.endsWith('.pdf')){
-    const arr=new Uint8Array(await first.arrayBuffer());
-    const pdf=await pdfjsLib.getDocument({data:arr}).promise;
-    const page=await pdf.getPage(1);
-    const vp=page.getViewport({scale:1.5});
-    const cvs=document.createElement('canvas');cvs.width=vp.width;cvs.height=vp.height;
-    await page.render({canvasContext:cvs.getContext('2d'),viewport:vp}).promise;
-    loadDrawing(cvs);
-  }else{
-    const img=new Image();img.onload=()=>loadDrawing(img);
-    img.src=URL.createObjectURL(first);
+  state.drawings=[];
+  for(const f of imageFiles){
+    if(f.type==='application/pdf'||f.name.endsWith('.pdf')){
+      const arr=new Uint8Array(await f.arrayBuffer());
+      const pdf=await pdfjsLib.getDocument({data:arr}).promise;
+      const page=await pdf.getPage(1);
+      const vp=page.getViewport({scale:1.5});
+      const cvs=document.createElement('canvas');cvs.width=vp.width;cvs.height=vp.height;
+      await page.render({canvasContext:cvs.getContext('2d'),viewport:vp}).promise;
+      state.drawings.push({img:cvs,w:cvs.width,h:cvs.height,name:f.name});
+    }else{
+      await new Promise(res=>{const img=new Image();img.onload=()=>{state.drawings.push({img,w:img.width,h:img.height,name:f.name});res()};img.src=URL.createObjectURL(f)});
+    }
   }
+  state.currentDrawing=0;switchDrawing(0);
+  renderDrawingThumbs();
 });
+
+function switchDrawing(i){
+  state.currentDrawing=i;const d=state.drawings[i];if(!d)return;
+  state.drawingImg=d.img;state.drawingW=d.w;state.drawingH=d.h;
+  state.placeholders=[];render2D();rebuild3D();
+  statusBar.textContent=`${d.name} (${i+1}/${state.drawings.length})`;
+}
+window.switchDrawing=switchDrawing;
+
+function renderDrawingThumbs(){
+  const container=$('thumbStrip');if(!container)return;
+  container.innerHTML='';
+  for(let i=0;i<state.drawings.length;i++){
+    const d=state.drawings[i];
+    const thumb=document.createElement('canvas');thumb.width=60;thumb.height=40;thumb.getContext('2d').drawImage(d.img,0,0,60,40);
+    thumb.style.cssText='border:2px solid '+(i===state.currentDrawing?'#4d78cc':'#333842')+';border-radius:4px;cursor:pointer;margin:2px';
+    thumb.title=d.name;thumb.addEventListener('click',()=>switchDrawing(i));
+    container.appendChild(thumb);
+  }
+}
 
 function loadDrawing(img){
   state.drawingImg=img;state.drawingW=img.width;state.drawingH=img.height;
@@ -307,6 +335,60 @@ function removePH(id){
   render2D();rebuild3D();statusBar.textContent='已删除占位符';
 }
 window.removePH=removePH;
+
+// 管道检测：扫描图纸深色线条 → 生成3D管道
+function detectPipes(){
+  if(!state.drawingImg)return;
+  const cvs=document.createElement('canvas');cvs.width=state.drawingW;cvs.height=state.drawingH;
+  const ctx=cvs.getContext('2d');ctx.drawImage(state.drawingImg,0,0);
+  const imgData=ctx.getImageData(0,0,state.drawingW,state.drawingH);
+  const d=imgData.data;const w=state.drawingW,h=state.drawingH;
+  // 找深色像素（线条）
+  const darkPts=[];const step=3; // 每3像素采样
+  for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step){
+    const i=(y*w+x)*4;const gray=(d[i]+d[i+1]+d[i+2])/3;
+    if(gray<100)darkPts.push({x,y});
+  }
+  if(darkPts.length<20){statusBar.textContent='未检测到足够线条，请用清晰图纸';return}
+  // 找水平线和垂直线段
+  const segments=[];
+  const visited=new Set();
+  const threshold=8;
+  for(const pt of darkPts){
+    const k=`${pt.x},${pt.y}`;if(visited.has(k))continue;
+    // 水平扫描
+    let xEnd=pt.x;while(xEnd<w-1&&darkPts.some(p=>p.y>=pt.y-threshold&&p.y<=pt.y+threshold&&p.x===xEnd+step))xEnd+=step;
+    if(xEnd-pt.x>30){segments.push({x1:pt.x,y1:pt.y,x2:xEnd,y2:pt.y,dir:'h'});for(let x=pt.x;x<=xEnd;x+=step)visited.add(`${x},${pt.y}`)}
+    // 垂直扫描
+    let yEnd=pt.y;while(yEnd<h-1&&darkPts.some(p=>p.x>=pt.x-threshold&&p.x<=pt.x+threshold&&p.y===yEnd+step))yEnd+=step;
+    if(yEnd-pt.y>30){segments.push({x1:pt.x,y1:pt.y,x2:pt.x,y2:yEnd,dir:'v'});for(let y=pt.y;y<=yEnd;y+=step)visited.add(`${pt.x},${y}`)}
+  }
+  if(!segments.length){statusBar.textContent='未检测到管道线条';return}
+  statusBar.textContent=`检测到 ${segments.length} 段管道线条`;
+  // 在3D场景中生成管道
+  for(const seg of segments){
+    const x1=(seg.x1/w-0.5)*10,z1=(seg.y1/h-0.5)*10;
+    const x2=(seg.x2/w-0.5)*10,z2=(seg.y2/h-0.5)*10;
+    const mx=(x1+x2)/2,mz=(z1+z2)/2;
+    const len=Math.hypot(x2-x1,z2-z1);
+    const angle=Math.atan2(z2-z1,x2-x1);
+    const pipe=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08,0.08,len,8),
+      new THREE.MeshStandardMaterial({color:0x4d78cc,metalness:0.7,roughness:0.3})
+    );
+    pipe.position.set(mx,0.3,mz);pipe.rotation.z=Math.PI/2;pipe.rotation.y=-angle;
+    pipe.userData={isPipe:true};scene.add(pipe);
+    // 端点占位符
+    const id=state.nextId++;
+    const ph={id,x:seg.x1,y:seg.y1,x3d:x1,z3d:z1,label:`管端${id}`,product:null};
+    state.placeholders.push(ph);add3DPlaceholder(ph);
+    const id2=state.nextId++;
+    const ph2={id:id2,x:seg.x2,y:seg.y2,x3d:x2,z3d:z2,label:`管端${id2}`,product:null};
+    state.placeholders.push(ph2);add3DPlaceholder(ph2);
+  }
+  render2D();statusBar.textContent=`已生成 ${segments.length} 段3D管道 + ${segments.length*2} 个端点占位符`;
+}
+window.detectPipes=detectPipes;
 
 function clearAllPlaceholders(){
   state.placeholders=[];render2D();rebuild3D();statusBar.textContent='已清除全部';
