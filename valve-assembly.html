@@ -132,33 +132,13 @@ convert_to_gltf('./cad_models/', './models/')</code></pre>
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    "three": "https://esm.sh/three@0.160.0",
+    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
   }
 }
 </script>
-<script>
-// Three.js 备用CDN（unpkg失败时切esm.sh）
-window.addEventListener('error',function(e){
-  if(e.target&&e.target.tagName==='SCRIPT'&&e.target.src&&e.target.src.includes('unpkg')){
-    console.warn('unpkg failed, trying esm.sh');
-    const map=document.querySelector('script[type=importmap]');
-    map.textContent=map.textContent.replaceAll('unpkg.com','esm.sh');
-  }
-},true);
-</script>
-<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script>
-// 动态加载 JSZip（ZIP 解压用）
-let JSZipLib=null;
-(function loadZIP(){
-  const urls=['https://unpkg.com/jszip@3.10.1/dist/jszip.min.js','https://registry.npmmirror.com/jszip/3.10.1/files/dist/jszip.min.js','https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'];
-  let i=0;
-  function tryNext(){if(i>=urls.length)return;const s=document.createElement('script');s.src=urls[i];s.onload=()=>{if(typeof JSZip!=='undefined')JSZipLib=JSZip;else{i++;tryNext()}};s.onerror=()=>{i++;tryNext()};document.head.appendChild(s)}
-  tryNext();
-})();
-</script>
-
+<script src="https://esm.sh/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://esm.sh/jszip@3.10.1/dist/jszip.min.js"></script>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -211,9 +191,9 @@ async function handleDrawingFiles(files){
   for(const f of files){
     // ZIP 解压
     if(f.name.endsWith('.zip')||f.type==='application/zip'){
-      if(!JSZipLib){statusBar.textContent='ZIP组件加载中，请稍后重试';continue}
+      if(typeof JSZip==='undefined'){statusBar.textContent='ZIP组件加载中，请稍后重试';continue}
       try{
-        const zip=await JSZipLib.loadAsync(f);
+        const zip=await JSZip.loadAsync(f);
         for(const[name,entry]of Object.entries(zip.files)){
           if(entry.dir)continue;const ext=name.split('.').pop().toLowerCase();
           if(!['jpg','jpeg','png','pdf'].includes(ext))continue;
