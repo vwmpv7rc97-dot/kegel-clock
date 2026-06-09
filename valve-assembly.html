@@ -61,7 +61,7 @@ input[type=file]{display:none}
   <h1>🏭 工业阀门三维装配</h1>
   <div class="toolbar">
     <button class="btn btn-sm" onclick="document.getElementById('fileInput').click()">📁 上传图纸</button>
-    <input type="file" id="fileInput" accept="image/*,.pdf">
+    <input type="file" id="fileInput" accept="image/*,.pdf,.zip" multiple>
     <button class="btn btn-sm" onclick="addDemoDrawing()">📐 示例图纸</button>
     <button class="btn btn-sm" onclick="exportJSON()">💾 导出方案</button>
     <button class="btn btn-sm" onclick="document.getElementById('importInput').click()">📥 导入方案</button>
@@ -132,6 +132,16 @@ convert_to_gltf('./cad_models/', './models/')</code></pre>
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+// 动态加载 JSZip（ZIP 解压用）
+let JSZipLib=null;
+(function loadZIP(){
+  const urls=['https://registry.npmmirror.com/jszip/3.10.1/files/dist/jszip.min.js','https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'];
+  let i=0;
+  function tryNext(){if(i>=urls.length)return;const s=document.createElement('script');s.src=urls[i];s.onload=()=>{if(typeof JSZip!=='undefined')JSZipLib=JSZip;else{i++;tryNext()}};s.onerror=()=>{i++;tryNext()};document.head.appendChild(s)}
+  tryNext();
+})();
+</script>
 
 <script type="module">
 import * as THREE from 'three';
@@ -167,10 +177,31 @@ window.addEventListener('mouseup',()=>{isResizing=false});
 
 // ===== 上传图纸 =====
 $('fileInput').addEventListener('change',async e=>{
-  const f=e.target.files[0];if(!f)return;
-  statusBar.textContent='加载图纸…';
-  if(f.type==='application/pdf'||f.name.endsWith('.pdf')){
-    const arr=new Uint8Array(await f.arrayBuffer());
+  const files=Array.from(e.target.files);if(!files.length)return;
+  const imageFiles=[];
+  for(const f of files){
+    // ZIP 解压
+    if(f.name.endsWith('.zip')||f.type==='application/zip'){
+      if(!JSZipLib){statusBar.textContent='ZIP组件加载中，请稍后重试';continue}
+      try{
+        const zip=await JSZipLib.loadAsync(f);
+        for(const[name,entry]of Object.entries(zip.files)){
+          if(entry.dir)continue;const ext=name.split('.').pop().toLowerCase();
+          if(!['jpg','jpeg','png','pdf'].includes(ext))continue;
+          const blob=await entry.async('blob');const mime=ext==='pdf'?'application/pdf':`image/${ext==='jpg'?'jpeg':ext}`;
+          imageFiles.push(new File([blob],name.split('/').pop(),{type:mime}));
+        }
+      }catch(e){statusBar.textContent='ZIP解压失败: '+e.message}
+      continue;
+    }
+    imageFiles.push(f);
+  }
+  if(!imageFiles.length)return;
+  // 只加载第一张到主视图，其余暂存
+  statusBar.textContent=`加载 ${imageFiles.length} 张图纸…`;
+  const first=imageFiles[0];
+  if(first.type==='application/pdf'||first.name.endsWith('.pdf')){
+    const arr=new Uint8Array(await first.arrayBuffer());
     const pdf=await pdfjsLib.getDocument({data:arr}).promise;
     const page=await pdf.getPage(1);
     const vp=page.getViewport({scale:1.5});
@@ -179,7 +210,7 @@ $('fileInput').addEventListener('change',async e=>{
     loadDrawing(cvs);
   }else{
     const img=new Image();img.onload=()=>loadDrawing(img);
-    img.src=URL.createObjectURL(f);
+    img.src=URL.createObjectURL(first);
   }
 });
 
