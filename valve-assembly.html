@@ -175,9 +175,20 @@ $('resizeHandle').addEventListener('mousedown',e=>{isResizing=true;e.preventDefa
 window.addEventListener('mousemove',e=>{if(!isResizing)return;const r=document.getElementById('mainContainer').getBoundingClientRect();const pct=((e.clientX-r.left)/r.width)*100;panel2d.style.flex=`0 0 ${Math.max(15,Math.min(60,pct))}%`;panel3d.style.flex='1'});
 window.addEventListener('mouseup',()=>{isResizing=false});
 
+// ===== 拖拽上传（2D面板区域） =====
+panel2d.addEventListener('dragover',e=>{e.preventDefault();panel2d.style.border='2px dashed #4d78cc'});
+panel2d.addEventListener('dragleave',()=>{panel2d.style.border=''});
+panel2d.addEventListener('drop',async e=>{
+  e.preventDefault();panel2d.style.border='';
+  const files=Array.from(e.dataTransfer.files);
+  if(files.length)handleDrawingFiles(files);
+});
+
 // ===== 上传图纸 =====
-$('fileInput').addEventListener('change',async e=>{
-  const files=Array.from(e.target.files);if(!files.length)return;
+$('fileInput').addEventListener('change',e=>{handleDrawingFiles(Array.from(e.target.files))});
+
+async function handleDrawingFiles(files){
+  if(!files.length)return;
   const imageFiles=[];
   for(const f of files){
     // ZIP 解压
