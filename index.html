@@ -2,8 +2,27 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=kegel-clock.html">
-<title>提肛时钟</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工具集</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC","Microsoft YaHei",sans-serif;
+    background:#0f0f1a;color:#e8e8ed;min-height:100vh;display:flex;align-items:center;justify-content:center
+  }
+  .links{display:flex;flex-direction:column;gap:16px;text-align:center}
+  .links a{
+    color:#5b9cf5;font-size:18px;text-decoration:none;padding:16px 32px;
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+    border-radius:16px;transition:all .2s;letter-spacing:.04em
+  }
+  .links a:hover{background:rgba(255,255,255,0.08);transform:translateY(-2px)}
+</style>
 </head>
-<body></body>
+<body>
+<div class="links">
+  <a href="kegel-clock.html">🕐 提肛时钟</a>
+  <a href="batch-bg-remover.html">🖼️ 批量抠图</a>
+</div>
+</body>
 </html>
