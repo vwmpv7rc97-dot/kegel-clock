@@ -6,158 +6,165 @@
 <title>提肛时钟</title>
 
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="提肛时钟">
-<meta name="theme-color" content="#f4f6f8">
+<meta name="theme-color" content="#0ea5e9">
 
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
   :root {
-    --bg: #f4f6f8;
-    --card: #ffffff;
-    --text: #1e293b;
-    --text-secondary: #64748b;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --accent-light: #eff6ff;
-    --border: #e2e8f0;
-    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-lg: 0 4px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
-    --radius: 16px;
     --safe-b: env(safe-area-inset-bottom, 0px);
     --safe-t: env(safe-area-inset-top, 0px);
   }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
+    background: linear-gradient(170deg, #ecfeff 0%, #e0f2fe 30%, #f0f9ff 50%, #fdf2f8 80%, #fef3c7 100%);
+    background-attachment: fixed;
     min-height: 100vh;
     min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    padding-top: calc(20px + var(--safe-t));
-    padding-bottom: calc(20px + var(--safe-b));
+    padding: 24px;
+    padding-top: calc(24px + var(--safe-t));
+    padding-bottom: calc(24px + var(--safe-b));
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
   }
 
-  /* ===== 主卡片 ===== */
+  /* ===== 主卡片 Liquid Glass ===== */
   .card {
-    background: var(--card);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-radius: 32px;
+    box-shadow:
+      0 0 0 0.5px rgba(255,255,255,0.6),
+      0 8px 32px rgba(0,0,0,0.04),
+      0 2px 8px rgba(0,0,0,0.02),
+      inset 0 0 0 0.5px rgba(255,255,255,0.8);
     width: 100%;
-    max-width: 520px;
-    padding: 40px 36px;
+    max-width: 480px;
+    padding: 44px 40px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0;
   }
 
   .title {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
-    color: var(--text);
-    letter-spacing: 0.15em;
-    margin-bottom: 20px;
+    color: #334155;
+    letter-spacing: 0.2em;
+    margin-bottom: 28px;
+    opacity: 0.7;
   }
 
   .time {
-    font-size: 80px;
-    font-weight: 300;
-    color: var(--text);
+    font-size: 88px;
+    font-weight: 280;
+    color: #0f172a;
     line-height: 1;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
   }
 
   .date {
-    font-size: 15px;
-    color: var(--text-secondary);
-    margin-top: 8px;
-    letter-spacing: 0.03em;
+    font-size: 14px;
+    color: #94a3b8;
+    margin-top: 10px;
+    letter-spacing: 0.04em;
+    font-weight: 450;
+  }
+
+  /* 倒计时 */
+  .countdown {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #0ea5e9;
+    letter-spacing: 0.05em;
+    min-height: 21px;
+    font-weight: 500;
+    transition: all 0.3s;
   }
 
   /* ===== 按钮行 ===== */
   .btn-row {
     display: flex;
-    gap: 12px;
-    margin-top: 32px;
+    gap: 10px;
+    margin-top: 28px;
     width: 100%;
   }
 
   .btn {
     flex: 1;
-    padding: 14px 16px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 500;
+    padding: 14px 12px;
+    border-radius: 16px;
+    border: none;
+    font-size: 14px;
+    font-weight: 590;
     cursor: pointer;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     font-family: inherit;
-    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    transition: all 0.2s;
     text-align: center;
     white-space: nowrap;
-    min-height: 48px;
+    min-height: 50px;
     -webkit-tap-highlight-color: transparent;
+    position: relative;
   }
 
-  .btn:active {
+  /* 次要按钮 */
+  .btn-secondary {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #334155;
+    box-shadow: 0 0 0 0.5px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  }
+
+  .btn-secondary:active {
+    background: rgba(255,255,255,0.75);
     transform: scale(0.97);
-    background: #f8fafc;
   }
 
+  /* 主要按钮 */
   .btn-primary {
-    background: var(--accent);
+    background: #0ea5e9;
     color: #fff;
-    border-color: var(--accent);
-    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(14,165,233,0.3), 0 0 0 0.5px rgba(14,165,233,0.3);
   }
 
   .btn-primary:active {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
+    background: #0284c7;
+    transform: scale(0.97);
   }
 
-  .btn-primary.disabled {
-    background: #93c5fd;
-    border-color: #93c5fd;
-    cursor: default;
-    pointer-events: none;
+  .btn-primary.is-running {
+    background: #f59e0b;
+    box-shadow: 0 4px 16px rgba(245,158,11,0.3), 0 0 0 0.5px rgba(245,158,11,0.3);
+  }
+
+  .btn-primary.is-running:active {
+    background: #d97706;
   }
 
   @media (hover: hover) {
-    .btn:hover {
-      background: #f8fafc;
-      border-color: #cbd5e1;
-    }
-    .btn-primary:hover {
-      background: var(--accent-hover);
-      border-color: var(--accent-hover);
-    }
-    .btn-primary.disabled:hover {
-      background: #93c5fd;
-      border-color: #93c5fd;
-    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.75); transform: translateY(-1px); }
+    .btn-primary:hover { transform: translateY(-1px); }
   }
 
   /* ===== 运动 Overlay ===== */
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15,23,42,0.4);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(15,23,42,0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -168,176 +175,78 @@
     transition: opacity 0.3s;
   }
 
-  .overlay.active {
-    opacity: 1;
-    pointer-events: auto;
-  }
+  .overlay.active { opacity: 1; pointer-events: auto; }
 
-  .exercise-card {
-    background: var(--card);
-    border-radius: 20px;
+  .ex-card {
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-radius: 32px;
     padding: 36px 32px;
     text-align: center;
     width: 100%;
-    max-width: 380px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    max-width: 360px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.12), inset 0 0 0 0.5px rgba(255,255,255,0.8);
   }
 
-  .exercise-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 4px;
-  }
+  .ex-title { font-size: 19px; font-weight: 700; color: #334155; margin-bottom: 4px; }
+  .ex-sub { font-size: 13px; color: #94a3b8; margin-bottom: 24px; }
 
-  .exercise-subtitle {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 28px;
-  }
+  .ring-wrap { position: relative; width: 150px; height: 150px; margin: 0 auto 18px; }
+  .ring-wrap svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+  .ring-bg { fill: none; stroke: #e2e8f0; stroke-width: 7; }
+  .ring-fg { fill: none; stroke: #0ea5e9; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
+  .ring-fg.relax { stroke: #6366f1; }
+  .ring-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 280; color: #0f172a; }
 
-  .progress-wrap {
-    position: relative;
-    width: 160px;
-    height: 160px;
-    margin: 0 auto 20px;
-  }
+  .phase-lbl { font-size: 21px; font-weight: 600; letter-spacing: 0.1em; margin-bottom: 4px; transition: color 0.3s; }
+  .phase-lbl.contract { color: #0ea5e9; }
+  .phase-lbl.relax { color: #6366f1; }
+  .phase-h { font-size: 13px; color: #94a3b8; margin: 8px 0; }
 
-  .progress-wrap svg {
-    transform: rotate(-90deg);
-    width: 100%;
-    height: 100%;
-  }
+  .dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+  .dots span { width: 7px; height: 7px; border-radius: 50%; background: #e2e8f0; transition: all 0.3s; }
+  .dots span.done { background: #a5b4fc; }
+  .dots span.current { background: #0ea5e9; transform: scale(1.5); }
 
-  .progress-wrap .bg {
-    fill: none;
-    stroke: #e2e8f0;
-    stroke-width: 8;
-  }
+  .btn-skip { padding: 10px 28px; border-radius: 14px; border: none; background: rgba(0,0,0,0.04); color: #94a3b8; font-size: 14px; cursor: pointer; font-family: inherit; letter-spacing: 0.05em; }
+  .btn-skip:active { background: rgba(0,0,0,0.08); }
 
-  .progress-wrap .fg {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 8;
-    stroke-linecap: round;
-    transition: stroke-dashoffset 0.3s linear;
-  }
-
-  .progress-wrap .fg.relax {
-    stroke: #60a5fa;
-  }
-
-  .countdown-num {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 48px;
-    font-weight: 300;
-    color: var(--text);
-  }
-
-  .phase-label {
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    margin-bottom: 4px;
-    transition: color 0.3s;
-  }
-
-  .phase-label.contract { color: #16a34a; }
-  .phase-label.relax { color: #2563eb; }
-
-  .phase-hint {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin: 10px 0;
-  }
-
-  .cycle-dots {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 16px;
-  }
-
-  .cycle-dots span {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #e2e8f0;
-    transition: all 0.3s;
-  }
-
-  .cycle-dots span.done { background: #93c5fd; }
-  .cycle-dots span.current { background: var(--accent); transform: scale(1.4); }
-
-  .btn-skip {
-    padding: 10px 24px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--text-secondary);
-    font-size: 14px;
-    cursor: pointer;
-    font-family: inherit;
-    letter-spacing: 0.05em;
-  }
-
-  .btn-skip:active { background: #f8fafc; }
-
-  /* ===== Toast ===== */
+  /* Toast */
   .toast {
-    position: fixed;
-    top: 60px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-120px);
-    background: #1e293b;
-    color: #fff;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-size: 14px;
-    letter-spacing: 0.05em;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index: 300;
-    text-align: center;
-    max-width: 90vw;
+    position: fixed; top: 56px; left: 50%; transform: translateX(-50%) translateY(-120px);
+    background: rgba(15,23,42,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    color: #fff; padding: 12px 24px; border-radius: 14px; font-size: 14px; letter-spacing: 0.04em;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15); transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 300; text-align: center; max-width: 90vw;
   }
-
-  .toast.show {
-    transform: translateX(-50%) translateY(0);
-  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
 
   /* ===== 响应式 ===== */
-
-  /* 手机竖屏：按钮堆叠 + 卡片撑满 */
   @media (max-width: 500px) {
     body { padding: 16px; padding-top: calc(16px + var(--safe-t)); padding-bottom: calc(16px + var(--safe-b)); align-items: stretch; }
-    .card { flex: 1; max-width: none; padding: 32px 24px; justify-content: center; border-radius: 20px; }
-    .time { font-size: 56px; }
-    .title { font-size: 18px; margin-bottom: 24px; }
-    .btn-row { flex-direction: column; gap: 10px; margin-top: 28px; }
-    .btn { flex: none; width: 100%; }
-    .date { font-size: 14px; }
-    .exercise-card { padding: 28px 24px; }
-    .progress-wrap { width: 130px; height: 130px; }
-    .countdown-num { font-size: 40px; }
-    .phase-label { font-size: 19px; }
+    .card { flex: 1; max-width: none; padding: 36px 26px; justify-content: center; border-radius: 36px; }
+    .time { font-size: 62px; }
+    .title { font-size: 17px; margin-bottom: 32px; }
+    .btn-row { flex-direction: column; gap: 10px; margin-top: 24px; }
+    .btn { flex: none; width: 100%; font-size: 16px; min-height: 54px; }
+    .date { font-size: 13px; }
+    .countdown { font-size: 15px; }
+    /* 手机端隐藏通知按钮 */
+    #btnNotify { display: none; }
+    .ex-card { padding: 28px 24px; }
+    .ring-wrap { width: 130px; height: 130px; }
+    .ring-num { font-size: 38px; }
+    .phase-lbl { font-size: 18px; }
   }
 
-  /* 平板竖屏 */
   @media (min-width: 501px) and (max-width: 900px) {
-    .time { font-size: 72px; }
-    .card { max-width: 480px; }
+    .time { font-size: 78px; }
   }
 
-  /* 桌面横屏 */
   @media (min-width: 901px) {
-    body { align-items: center; }
-    .card { max-width: 560px; padding: 48px 48px; }
-    .time { font-size: 96px; }
+    .card { max-width: 520px; padding: 52px 52px; }
+    .time { font-size: 100px; }
   }
 </style>
 </head>
@@ -347,34 +256,31 @@
   <div class="title">提 肛 时 钟</div>
   <div class="time" id="clockTime">00:00:00</div>
   <div class="date" id="clockDate"></div>
+  <div class="countdown" id="countdown"></div>
   <div class="btn-row">
-    <button class="btn" id="btnNotify" onclick="handleNotify()">🔔 开启通知</button>
+    <button class="btn btn-secondary" id="btnNotify" onclick="handleNotify()">🔔 开启通知</button>
     <button class="btn btn-primary" id="btnCycle" onclick="handleCycle()">▶ 开始计时</button>
-    <button class="btn" id="btnNow" onclick="handleNow()">⚡ 立即开提</button>
+    <button class="btn btn-secondary" id="btnNow" onclick="handleNow()">⚡ 立即开提</button>
   </div>
 </div>
 
-<!-- 运动 Overlay -->
+<!-- 运动弹窗 -->
 <div class="overlay" id="overlay">
-  <div class="exercise-card">
-    <div class="exercise-title">🏋️ 提肛运动</div>
-    <div class="exercise-subtitle">60 秒 · 守护健康</div>
-
-    <div class="progress-wrap">
+  <div class="ex-card">
+    <div class="ex-title">🏋️ 提肛运动</div>
+    <div class="ex-sub">60 秒 · 守护健康</div>
+    <div class="ring-wrap">
       <svg viewBox="0 0 200 200">
-        <circle class="bg" cx="100" cy="100" r="90"/>
-        <circle class="fg" id="progFg" cx="100" cy="100" r="90" stroke-dasharray="565.49" stroke-dashoffset="0"/>
+        <circle class="ring-bg" cx="100" cy="100" r="90"/>
+        <circle class="ring-fg" id="progFg" cx="100" cy="100" r="90" stroke-dasharray="565.49" stroke-dashoffset="0"/>
       </svg>
-      <div class="countdown-num" id="countdownNum">60</div>
+      <div class="ring-num" id="countdownNum">60</div>
     </div>
-
-    <div class="phase-label contract" id="phaseLabel">收 缩</div>
-    <div class="phase-hint" id="phaseHint">第 1 / 3 轮</div>
-
-    <div class="cycle-dots" id="cycleDots">
+    <div class="phase-lbl contract" id="phaseLabel">收 缩</div>
+    <div class="phase-h" id="phaseHint">第 1 / 3 轮</div>
+    <div class="dots" id="cycleDots">
       <span class="current"></span><span></span><span></span>
     </div>
-
     <button class="btn-skip" onclick="skipExercise()">跳过</button>
   </div>
 </div>
@@ -390,89 +296,67 @@ let nextTrigger = null;
 let lastDay = null;
 let wakeLock = null;
 
+// ===== Toast =====
+function toast(msg, dur) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), dur || 2500);
+}
+
 // ===== 通知 =====
 function checkNotifState() {
-  if ('Notification' in window) {
-    if (Notification.permission === 'granted') {
-      notifOk = true;
-      document.getElementById('btnNotify').textContent = '✅ 已开启';
-    } else if (Notification.permission === 'denied') {
-      notifOk = false;
-      document.getElementById('btnNotify').textContent = '⚠️ 已拒绝';
-    }
-  } else {
-    document.getElementById('btnNotify').textContent = '⛔ 不支持';
-    document.getElementById('btnNotify').disabled = true;
-  }
+  if (!('Notification' in window)) { document.getElementById('btnNotify').style.display = 'none'; return; }
+  if (Notification.permission === 'granted') { notifOk = true; updateNotifyUI(); }
+  else if (Notification.permission === 'denied') { notifOk = false; updateNotifyUI(); }
+}
+
+function updateNotifyUI() {
+  const b = document.getElementById('btnNotify');
+  if (notifOk) b.textContent = '✅ 已开启';
+  else if ('Notification' in window && Notification.permission === 'denied') b.textContent = '⚠️ 已拒绝';
+  else b.textContent = '🔔 开启通知';
 }
 
 async function handleNotify() {
-  if (!('Notification' in window)) { toast('当前浏览器不支持通知'); return; }
-  if (Notification.permission === 'granted') { notifOk = true; toast('通知已开启 ✅'); updateNotifyBtn(); return; }
-  if (Notification.permission === 'denied') { toast('通知权限已被拒绝，请在浏览器设置中修改'); return; }
+  if (!('Notification' in window)) { toast('浏览器不支持通知'); return; }
+  if (Notification.permission === 'granted') { notifOk = true; updateNotifyUI(); toast('通知已开启'); return; }
+  if (Notification.permission === 'denied') { toast('请在浏览器设置中开启通知权限'); return; }
   try {
     const p = await Notification.requestPermission();
     notifOk = (p === 'granted');
-    if (notifOk) { toast('通知已开启 ✅'); new Notification('提肛时钟', { body: '已就绪，会按时提醒你' }); }
-    else { toast('通知权限未获取，页面内提醒仍然有效'); }
-    updateNotifyBtn();
-  } catch (e) { toast('通知授权失败'); }
-}
-
-function updateNotifyBtn() {
-  const b = document.getElementById('btnNotify');
-  if (notifOk) { b.textContent = '✅ 已开启'; }
-  else if (Notification.permission === 'denied') { b.textContent = '⚠️ 已拒绝'; }
-  else { b.textContent = '🔔 开启通知'; }
+    updateNotifyUI();
+    if (notifOk) { toast('通知已开启 ✅'); new Notification('提肛时钟', { body: '已就绪' }); }
+    else toast('未获取通知权限，页面内提醒仍有效');
+  } catch (e) { toast('授权失败'); }
 }
 
 function sendNotif(title, body) {
-  if (notifOk) {
-    try {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.ready.then(r => r.showNotification(title, { body, tag: 'kegel', requireInteraction: true, vibrate: [200,100,200] }));
-      } else {
-        new Notification(title, { body, tag: 'kegel', requireInteraction: true });
-      }
-      return;
-    } catch (e) {}
+  // 优先 SW
+  if (notifOk && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.ready.then(r => r.showNotification(title, { body, tag: 'kegel', requireInteraction: true, vibrate: [200,100,200] }));
+    return;
   }
-  toast(`⏰ ${title}\n${body}`);
-}
-
-// ===== Toast =====
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._tid);
-  t._tid = setTimeout(() => t.classList.remove('show'), 3000);
+  // 降级
+  if (notifOk && 'Notification' in window) {
+    try { new Notification(title, { body, tag: 'kegel', requireInteraction: true }); return; } catch (e) {}
+  }
+  toast(`⏰ ${title} — ${body}`);
 }
 
 // ===== 音频 =====
 let audioCtx = null;
-function initAudio() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+function initAudio() { if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
 function ensureAudio() { if (!audioCtx) initAudio(); if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }
-
 function beep(f, d, type) {
-  ensureAudio();
-  if (!audioCtx) return;
-  try {
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = type || 'sine'; o.frequency.value = f;
-    g.gain.setValueAtTime(0.25, audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d);
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(); o.stop(audioCtx.currentTime + d);
-  } catch (e) {}
+  ensureAudio(); if (!audioCtx) return;
+  try { const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=type||'sine'; o.frequency.value=f; g.gain.setValueAtTime(0.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d); } catch(e){}
 }
+function beepContract() { beep(660,0.12,'square'); if('vibrate' in navigator) navigator.vibrate(80); }
+function beepRelax() { beep(1040,0.18,'sine'); if('vibrate' in navigator) navigator.vibrate([40,30,40]); }
+function beepDone() { beep(1320,0.1); setTimeout(()=>beep(1560,0.12),120); setTimeout(()=>beep(1760,0.2),280); if('vibrate' in navigator) navigator.vibrate([80,40,80,40,150]); }
 
-function beepContract() { beep(660, 0.12, 'square'); if ('vibrate' in navigator) navigator.vibrate(80); }
-function beepRelax() { beep(1040, 0.18, 'sine'); if ('vibrate' in navigator) navigator.vibrate([40,30,40]); }
-function beepDone() { beep(1320,0.1); setTimeout(()=>beep(1560,0.12),120); setTimeout(()=>beep(1760,0.2),280); if ('vibrate' in navigator) navigator.vibrate([80,40,80,40,150]); }
-
-// ===== 时钟 =====
+// ===== 时钟 + 倒计时 + 每日重置 =====
 function updateClock() {
   const now = new Date();
   document.getElementById('clockTime').textContent =
@@ -483,46 +367,82 @@ function updateClock() {
     `${now.getFullYear()}年${String(now.getMonth()+1).padStart(2,'0')}月${String(now.getDate()).padStart(2,'0')}日 星期${wd[now.getDay()]}`;
 
   // 每日重置
-  const today = now.getDate();
-  if (lastDay !== null && lastDay !== today) { cycleActive = false; nextTrigger = null; updateCycleBtn(); }
-  lastDay = today;
+  if (lastDay !== null && lastDay !== now.getDate()) { cycleActive = false; nextTrigger = null; updateCycleUI(); }
+  lastDay = now.getDate();
 
-  // 60分钟周期触发
+  // 60 分钟周期触发
   if (cycleActive && nextTrigger && Date.now() >= nextTrigger) {
     nextTrigger += 60 * 60 * 1000;
     startExercise();
   }
+
+  // 更新倒计时显示
+  updateCountdown();
 }
 
-// ===== 按钮：开始计时 =====
-function handleCycle() {
-  if (!notifOk) { toast('请先开启通知权限'); handleNotify(); return; }
+function updateCountdown() {
+  const el = document.getElementById('countdown');
+  if (!cycleActive || !nextTrigger) { el.textContent = ''; return; }
+  const remain = Math.max(0, nextTrigger - Date.now());
+  const rm = Math.floor(remain / 60000);
+  const rs = Math.floor((remain % 60000) / 1000);
+  el.textContent = `⏱ 下次提醒：${rm} 分 ${String(rs).padStart(2,'0')} 秒`;
+}
+
+// ===== 按钮：开始计时（修复：通知授权后自动启动） =====
+async function handleCycle() {
+  // 已是运行中 → 停止
   if (cycleActive) {
     cycleActive = false; nextTrigger = null;
-    toast('计时已停止 ⏸️');
-  } else {
-    cycleActive = true;
-    nextTrigger = Date.now() + 60 * 60 * 1000;
-    lastDay = new Date().getDate();
-    const nt = new Date(nextTrigger);
-    toast(`计时开始！首次提醒 ${String(nt.getHours()).padStart(2,'0')}:${String(nt.getMinutes()).padStart(2,'0')}`);
+    updateCycleUI(); updateCountdown();
+    toast('计时已停止');
+    return;
   }
-  updateCycleBtn();
+
+  // 检查通知授权
+  if (!notifOk) {
+    if (!('Notification' in window)) { toast('浏览器不支持通知，无法计时'); return; }
+    if (Notification.permission === 'denied') { toast('请在浏览器设置中开启通知权限'); return; }
+    // 未授权 → 请求授权
+    try {
+      const p = await Notification.requestPermission();
+      notifOk = (p === 'granted');
+      updateNotifyUI();
+      if (!notifOk) { toast('需要通知权限才能计时'); return; }
+    } catch (e) { toast('授权失败'); return; }
+  }
+
+  // 启动
+  cycleActive = true;
+  nextTrigger = Date.now() + 60 * 60 * 1000;
+  lastDay = new Date().getDate();
+  updateCycleUI();
+  updateCountdown();
+  const nt = new Date(nextTrigger);
+  toast(`计时开始 · ${String(nt.getHours()).padStart(2,'0')}:${String(nt.getMinutes()).padStart(2,'0')} 首次提醒`);
 }
 
-function updateCycleBtn() {
+function updateCycleUI() {
   const b = document.getElementById('btnCycle');
-  if (cycleActive) { b.textContent = '⏸ 计时中'; b.classList.add('disabled'); }
-  else { b.textContent = '▶ 开始计时'; b.classList.remove('disabled'); }
+  if (cycleActive) { b.textContent = '⏸ 计时中'; b.classList.add('is-running'); }
+  else { b.textContent = '▶ 开始计时'; b.classList.remove('is-running'); }
 }
 
-// ===== 按钮：立即开提 =====
-function handleNow() {
-  if (!notifOk) { toast('请先开启通知权限'); handleNotify(); return; }
+// ===== 按钮：立即开提（修复：通知授权后自动执行） =====
+async function handleNow() {
+  if (!notifOk) {
+    if (!('Notification' in window)) { startExercise(); return; } // 没通知也执行
+    if (Notification.permission === 'denied') { startExercise(); return; }
+    try {
+      const p = await Notification.requestPermission();
+      notifOk = (p === 'granted');
+      updateNotifyUI();
+    } catch (e) {}
+  }
   startExercise();
 }
 
-// ===== 运动 =====
+// ===== 运动逻辑 =====
 const CIRC = 2 * Math.PI * 90;
 
 function startExercise() {
@@ -538,15 +458,13 @@ function startExercise() {
   overlay.classList.add('active');
   fg.classList.remove('relax');
   fg.setAttribute('stroke-dashoffset', '0');
-  cn.textContent = '60';
 
   sendNotif('提肛时间', '该起来提肛啦！');
 
   if ('wakeLock' in navigator) {
-    navigator.wakeLock.request('screen').then(w => { wakeLock = w; w.addEventListener('release', () => wakeLock = null); }).catch(()=>{});
+    navigator.wakeLock.request('screen').then(w => { wakeLock = w; w.addEventListener('release', ()=>wakeLock=null); }).catch(()=>{});
   }
 
-  // 标题闪烁
   const origTitle = document.title;
   let flashOn = true;
   const flashId = setInterval(() => { document.title = flashOn ? '⏰ 提肛！' : origTitle; flashOn = !flashOn; }, 800);
@@ -564,27 +482,26 @@ function startExercise() {
 
   function updDots(idx) {
     const done = Math.floor(idx / 2);
-    const dots = cd.querySelectorAll('span');
-    dots.forEach((d, i) => { d.className = ''; if (i < done) d.className = 'done'; if (i === done && idx % 2 === 0) d.className = 'current'; if (i === done && idx % 2 === 1) d.className = 'done'; });
+    cd.querySelectorAll('span').forEach((d, i) => { d.className = ''; if (i < done) d.className = 'done'; if (i === done && idx % 2 === 0) d.className = 'current'; if (i === done && idx % 2 === 1) d.className = 'done'; });
   }
 
   function runPhase(idx) {
     if (idx >= phases.length) { finish(); return; }
     const p = phases[idx];
-    pl.textContent = p.l; pl.className = 'phase-label ' + p.c;
+    pl.textContent = p.l; pl.className = 'phase-lbl ' + p.c;
     ph.textContent = p.h; updDots(idx);
     fg.classList.toggle('relax', !p.ct);
     (p.ct ? beepContract : beepRelax)();
 
     const phaseStart = Date.now();
     fg.setAttribute('stroke-dashoffset', '0');
+    cn.textContent = String(Math.ceil(Math.max(0, 60 - (Date.now() - startTs) / 1000)));
 
     function tick() {
-      const remaining = Math.max(0, 10 - (Date.now() - phaseStart) / 1000);
-      const gRemain = Math.max(0, 60 - (Date.now() - startTs) / 1000);
-      cn.textContent = String(Math.ceil(gRemain));
-      fg.setAttribute('stroke-dashoffset', CIRC - (remaining / 10) * CIRC);
-      if (remaining <= 0) { clearInterval(phaseTimer); runPhase(idx + 1); }
+      const remain = Math.max(0, 10 - (Date.now() - phaseStart) / 1000);
+      cn.textContent = String(Math.ceil(Math.max(0, 60 - (Date.now() - startTs) / 1000)));
+      fg.setAttribute('stroke-dashoffset', CIRC - (remain / 10) * CIRC);
+      if (remain <= 0) { clearInterval(phaseTimer); runPhase(idx + 1); }
     }
     tick();
     phaseTimer = setInterval(tick, 100);
@@ -596,7 +513,7 @@ function startExercise() {
     beepDone();
     if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null; }
     overlay.classList.remove('active');
-    toast('✅ 完成！下一轮继续加油');
+    toast('✅ 完成！下一轮继续');
   }
 
   updDots(-1);
@@ -616,8 +533,6 @@ function init() {
   checkNotifState();
   updateClock();
   setInterval(updateClock, 1000);
-
-  // 点击激活音频
   document.addEventListener('click', () => { initAudio(); if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }, { once: false });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) updateClock(); });
 }
@@ -625,13 +540,13 @@ function init() {
 // ===== Service Worker =====
 if ('serviceWorker' in navigator) {
   const swBlob = new Blob([`
-    const C = 'kegel-v3';
-    self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll([self.location.href])).catch(()=>{})); self.skipWaiting(); });
-    self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x))))); self.clients.claim(); });
-    self.addEventListener('fetch', e => { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });
-    self.addEventListener('notificationclick', e => { e.notification.close(); e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(w => w.length ? w[0].focus() : clients.openWindow(self.location.href))); });
+    const C='kegel-v4';
+    self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll([self.location.href])).catch(()=>{}));self.skipWaiting();});
+    self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim();});
+    self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});
+    self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(w=>w.length?w[0].focus():clients.openWindow(self.location.href)));});
   `], { type: 'application/javascript' });
-  navigator.serviceWorker.register(URL.createObjectURL(swBlob), { scope: '/' }).catch(() => {});
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob), { scope: '/' }).catch(()=>{});
 }
 
 document.addEventListener('DOMContentLoaded', init);
