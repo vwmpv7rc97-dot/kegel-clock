@@ -402,27 +402,23 @@ async function handleCycle() {
     return;
   }
 
-  // 检查通知授权
-  if (!notifOk) {
-    if (!('Notification' in window)) { toast('浏览器不支持通知，无法计时'); return; }
-    if (Notification.permission === 'denied') { toast('请在浏览器设置中开启通知权限'); return; }
-    // 未授权 → 请求授权
+  // 尝试获取通知权限（不强制，没有通知也能计时）
+  if (!notifOk && 'Notification' in window && Notification.permission === 'default') {
     try {
       const p = await Notification.requestPermission();
       notifOk = (p === 'granted');
       updateNotifyUI();
-      if (!notifOk) { toast('需要通知权限才能计时'); return; }
-    } catch (e) { toast('授权失败'); return; }
+    } catch (e) {}
   }
 
-  // 启动
+  // 启动计时
   cycleActive = true;
   nextTrigger = Date.now() + 60 * 60 * 1000;
   lastDay = new Date().getDate();
   updateCycleUI();
   updateCountdown();
   const nt = new Date(nextTrigger);
-  toast(`计时开始 · ${String(nt.getHours()).padStart(2,'0')}:${String(nt.getMinutes()).padStart(2,'0')} 首次提醒`);
+  toast(`计时开始 · ${String(nt.getHours()).padStart(2,'0')}:${String(nt.getMinutes()).padStart(2,'0')} 首次提醒${notifOk?'':'（无系统通知，页面内提醒）'}`);
 }
 
 function updateCycleUI() {
@@ -431,17 +427,9 @@ function updateCycleUI() {
   else { b.textContent = '▶ 开始计时'; b.classList.remove('is-running'); }
 }
 
-// ===== 按钮：立即开提（修复：通知授权后自动执行） =====
-async function handleNow() {
-  if (!notifOk) {
-    if (!('Notification' in window)) { startExercise(); return; } // 没通知也执行
-    if (Notification.permission === 'denied') { startExercise(); return; }
-    try {
-      const p = await Notification.requestPermission();
-      notifOk = (p === 'granted');
-      updateNotifyUI();
-    } catch (e) {}
-  }
+// ===== 按钮：立即开提（不强制通知） =====
+function handleNow() {
+  // 直接开始，不检查通知
   startExercise();
 }
 
