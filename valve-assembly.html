@@ -129,16 +129,6 @@ def convert_to_gltf(input_dir, output_dir):
 convert_to_gltf('./cad_models/', './models/')</code></pre>
 </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://esm.sh/three@0.160.0",
-    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-<script src="https://esm.sh/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="https://esm.sh/jszip@3.10.1/dist/jszip.min.js"></script>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -733,5 +723,15 @@ addDemoDrawing();
 updateGroundTexture();
 statusBar.textContent='就绪 · 点击图纸添加占位符';
 </script>
+<script defer type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.160.0",
+    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script defer src="https://esm.sh/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script defer src="https://esm.sh/jszip@3.10.1/dist/jszip.min.js"></script>
 </body>
 </html>
